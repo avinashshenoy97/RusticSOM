@@ -15,7 +15,6 @@ pub struct SOM {
     sigma: f32,           // spread of neighbourhood function, default = 1.0
     regulate_lrate: u32,    // Regulates the learning rate w.r.t the number of iterations
     map: Array3<f64>,       // the SOM itself
-    activation_map: Array2<f64>,       // the activation map
     decay_function: fn(f32, u32, u32) -> f64,          // the function used to decay learning_rate and sigma
     neighbourhood_function: fn((usize, usize), (usize, usize), f32) -> Array2<f64>,          // the function that determines the weights of the neighbours
 }
@@ -24,7 +23,7 @@ pub struct SOM {
 impl SOM {
 
     // To create a Self-Organizing Map (SOM)
-    fn create(length: usize, breadth: usize, inputs: usize, randomize: bool, learning_rate: Option<f32>, sigma: Option<f32>, decay_function: Option<fn(f32, u32, u32) -> f64>, neighbourhood_function: Option<fn((usize, usize), (usize, usize), f32) -> Array2<f64>>) -> SOM {
+    pub fn create(length: usize, breadth: usize, inputs: usize, randomize: bool, learning_rate: Option<f32>, sigma: Option<f32>, decay_function: Option<fn(f32, u32, u32) -> f64>, neighbourhood_function: Option<fn((usize, usize), (usize, usize), f32) -> Array2<f64>>) -> SOM {
         // Map of "length" x "breadth" is created, with depth "inputs" (for input vectors accepted by this SOM)
         // randomize: boolean; whether the SOM must be initialized with random weights or not
 
@@ -59,7 +58,6 @@ impl SOM {
                 Some(foo) => foo,
             },
             map: the_map,
-            activation_map: the_activation_map,
             regulate_lrate: init_regulate_lrate
         }
     }
@@ -93,7 +91,7 @@ impl SOM {
         let mut new_lr = (self.decay_function)(self.learning_rate, iteration_index, self.regulate_lrate);
         let mut new_sig = (self.decay_function)(self.sigma, iteration_index, self.regulate_lrate);
 
-        let mut g = (self.neighbourhood_function)((self.x, self.y), winner, new_sig) * new_lr;
+        let mut g = (self.neighbourhood_function)((self.x, self.y), winner, new_sig as f32) * new_lr;
 
         let mut new_elem: Array1<f64>;
         let mut temp_norm: f64 = 0.0;
@@ -113,22 +111,50 @@ impl SOM {
     }
 
     // Trains the SOM by picking random data points as inputs from the dataset
-    fn train_random(&mut self, mut data: Array2<f64>, iterations: u32){
+    pub fn train_random(&mut self, mut data: Array2<f64>, iterations: u32){
         let mut random_value: i32;
+        let mut temp1: Array1<f64>;
+        let mut temp2: Array1<f64>;
         self.update_regulate_lrate(iterations);
         for iteration in 0..iterations{
+            temp1 = Array1::<f64>::zeros((ndarray::ArrayBase::dim(&data).1));
+            temp2 = Array1::<f64>::zeros((ndarray::ArrayBase::dim(&data).1));
             random_value = rand::thread_rng().gen_range(0, ndarray::ArrayBase::dim(&data).0 as i32);
-            // call to update function
+            for i in 0..ndarray::ArrayBase::dim(&data).0 {
+                if i == random_value as usize {
+                    for j in 0..ndarray::ArrayBase::dim(&data).1 {
+                        temp1[j] = data[[i, j]];
+                        temp2[j] = data[[i, j]];
+                    }
+                    break;
+                }
+            }
+            let mut win = self.winner(temp1);
+            self.update(temp2, win, iteration);
         }
     }   
 
     // Trains the SOM by picking  data points in batches (sequentially) as inputs from the dataset
-    fn train_batch(&mut self, mut data: Array2<f64>, iterations: u32){
+    pub fn train_batch(&mut self, mut data: Array2<f64>, iterations: u32){
         let mut index: u32;
+        let mut temp1: Array1<f64>;
+        let mut temp2: Array1<f64>;
         self.update_regulate_lrate(ndarray::ArrayBase::dim(&data).0 as u32 * iterations);
         for iteration in 0..iterations{
+            temp1 = Array1::<f64>::zeros((ndarray::ArrayBase::dim(&data).1));
+            temp2 = Array1::<f64>::zeros((ndarray::ArrayBase::dim(&data).1));
             index = iteration % (ndarray::ArrayBase::dim(&data).0 - 1) as u32;
-            // call to update function
+            for i in 0..ndarray::ArrayBase::dim(&data).0 {
+                if i == index as usize {
+                    for j in 0..ndarray::ArrayBase::dim(&data).1 {
+                        temp1[j] = data[[i, j]];
+                        temp2[j] = data[[i, j]];
+                    }
+                    break;
+                }
+            }
+            let mut win = self.winner(temp1);
+            self.update(temp2, win, iteration);
         }
     }  
 
