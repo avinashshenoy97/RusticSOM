@@ -12,25 +12,25 @@ pub struct SOM {
     y: usize,               // breadth of SOM
     z: usize,               // size of inputs
     learning_rate: f32,   // initial learning rate
-    sigma: f64,           // spread of neighbourhood function, default = 1.0
-    regulate_lrate: f64,    // Regulates the learning rate w.r.t the number of iterations
+    sigma: f32,           // spread of neighbourhood function, default = 1.0
+    regulate_lrate: u32,    // Regulates the learning rate w.r.t the number of iterations
     map: Array3<f64>,       // the SOM itself
     activation_map: Array2<f64>,       // the activation map
-    decay_function: fn(f64, u64, u64) -> f64,          // the function used to decay learning_rate and sigma
-    neighbourhood_function: fn((usize, usize), (usize, usize), f64) -> Array2<f64>,          // the function that determines the weights of the neighbours
+    decay_function: fn(f32, u32, u32) -> f64,          // the function used to decay learning_rate and sigma
+    neighbourhood_function: fn((usize, usize), (usize, usize), f32) -> Array2<f64>,          // the function that determines the weights of the neighbours
 }
 
 // Method definitions of the SOM struct
 impl SOM {
 
     // To create a Self-Organizing Map (SOM)
-    fn create(length: usize, breadth: usize, inputs: usize, randomize: bool, learning_rate: Option<f32>, sigma: Option<f64>, decay_function: Option<fn(f64, u64, u64) -> f64>, neighbourhood_function: Option<fn((usize, usize), (usize, usize), f64) -> Array2<f64>>) -> SOM {
+    fn create(length: usize, breadth: usize, inputs: usize, randomize: bool, learning_rate: Option<f32>, sigma: Option<f32>, decay_function: Option<fn(f32, u32, u32) -> f64>, neighbourhood_function: Option<fn((usize, usize), (usize, usize), f32) -> Array2<f64>>) -> SOM {
         // Map of "length" x "breadth" is created, with depth "inputs" (for input vectors accepted by this SOM)
         // randomize: boolean; whether the SOM must be initialized with random weights or not
 
         let mut the_map = Array3::<f64>::zeros((length, breadth, inputs));
         let mut the_activation_map = Array2::<f64>::zeros((length, breadth));
-        let mut init_regulate_lrate = 0.0;
+        let mut init_regulate_lrate = 0;
 
         if randomize {
             for element in the_map.iter_mut() {
@@ -88,8 +88,27 @@ impl SOM {
         ret
     }
 
+    // Update the weights of the SOM
+    fn update(&mut self, elem: Array1<f64>, winner: (usize, usize), iteration_index: u32){
+        let mut val = (self.decay_function)(self.learning_rate, iteration_index, self.regulate_lrate);
+        let mut lsig = (self.decay_function)(self.sigma, iteration_index, self.regulate_lrate);
+        let mut g = (self.neighbourhood_function)((self.x, self.y), winner, self.sigma) * val;
+        let mut new_elem: Array1<f64>;
+        let mut fnorm: f64;
+        for i in 0..ndarray::ArrayBase::dim(&g).0{
+            for j in 0..ndarray::ArrayBase::dim(&g).1{
+                let mut temp1 = self.map.subview_mut(Axis(0), i);
+                let mut temp2 = temp1.subview_mut(Axis(0), j);
+                /*new_elem = elem - temp2; 
+                temp2 = temp2 + g[[i, j]] * new_elem;
+                fnorm = norm(temp);
+                temp2 = temp2 / norm;*/
+            }
+        }
+    }
+
     // Trains the SOM by picking random data points as inputs from the dataset
-    fn train_random(mut self, mut data: Array2<f64>, iterations: u64){
+    fn train_random(&mut self, mut data: Array2<f64>, iterations: u32){
         let mut random_value: i32;
         self.update_regulate_lrate(iterations);
         for iteration in 0..iterations{
@@ -99,18 +118,18 @@ impl SOM {
     }   
 
     // Trains the SOM by picking  data points in batches (sequentially) as inputs from the dataset
-    fn train_batch(mut self, mut data: Array2<f64>, iterations: u64){
-        let mut index: u64;
-        self.update_regulate_lrate(ndarray::ArrayBase::dim(&data).0 as u64 * iterations);
+    fn train_batch(&mut self, mut data: Array2<f64>, iterations: u32){
+        let mut index: u32;
+        self.update_regulate_lrate(ndarray::ArrayBase::dim(&data).0 as u32 * iterations);
         for iteration in 0..iterations{
-            index = iteration % (ndarray::ArrayBase::dim(&data).0 - 1) as u64;
+            index = iteration % (ndarray::ArrayBase::dim(&data).0 - 1) as u32;
             // call to update function
         }
     }  
 
     // Update learning rate regulator (keep learning rate constant with increase in number of iterations)
-    fn update_regulate_lrate(mut self, iterations: u64){
-        self.regulate_lrate = ((iterations) / 2) as f64;
+    fn update_regulate_lrate(&mut self, iterations: u32){
+        self.regulate_lrate = iterations / 2;
     }
 }
 
@@ -143,14 +162,14 @@ fn norm(a: ArrayView1<f64>) -> f64 {
     ret.powf(0.5)
 }
 
-fn default_decay_function(val: f64, curr_iter: u64, max_iter: u64) -> f64 {
+fn default_decay_function(val: f32, curr_iter: u32, max_iter: u32) -> f64 {
     (val as f64) / ((1 + (curr_iter/max_iter)) as f64)
 }
 
 // Default neighbourhood function: Gaussian function; returns a Gaussian centered in pos
-fn gaussian(size: (usize, usize), pos: (usize, usize), sigma: f64) -> Array2<f64> {
+fn gaussian(size: (usize, usize), pos: (usize, usize), sigma: f32) -> Array2<f64> {
     let mut ret = Array2::<f64>::zeros((size.0, size.1));
-    let div = 2.0 * PI * sigma * sigma;
+    let div = 2.0 * PI * sigma as f64 * sigma as f64;
 
     let mut x: Vec<f64> = Vec::new();
     let mut y: Vec<f64> = Vec::new();
