@@ -89,20 +89,25 @@ impl SOM {
     }
 
     // Update the weights of the SOM
-    fn update(&mut self, elem: Array1<f64>, winner: (usize, usize), iteration_index: u32){
-        let mut val = (self.decay_function)(self.learning_rate, iteration_index, self.regulate_lrate);
-        let mut lsig = (self.decay_function)(self.sigma, iteration_index, self.regulate_lrate);
-        let mut g = (self.neighbourhood_function)((self.x, self.y), winner, self.sigma) * val;
+    fn update(&mut self, elem: Array1<f64>, winner: (usize, usize), iteration_index: u32) {
+        let mut new_lr = (self.decay_function)(self.learning_rate, iteration_index, self.regulate_lrate);
+        let mut new_sig = (self.decay_function)(self.sigma, iteration_index, self.regulate_lrate);
+
+        let mut g = (self.neighbourhood_function)((self.x, self.y), winner, new_sig) * new_lr;
+
         let mut new_elem: Array1<f64>;
-        let mut fnorm: f64;
-        for i in 0..ndarray::ArrayBase::dim(&g).0{
-            for j in 0..ndarray::ArrayBase::dim(&g).1{
-                let mut temp1 = self.map.subview_mut(Axis(0), i);
-                let mut temp2 = temp1.subview_mut(Axis(0), j);
-                /*new_elem = elem - temp2; 
-                temp2 = temp2 + g[[i, j]] * new_elem;
-                fnorm = norm(temp);
-                temp2 = temp2 / norm;*/
+        let mut temp_norm: f64 = 0.0;
+        
+        for i in 0..self.x {
+            for j in 0..self.y {
+                for k in 0..self.z {
+                    self.map[[i, j, k]] += (elem[[k]] - self.map[[i, j, k]]) * g[[i, j]];
+                }
+
+                temp_norm = norm(self.map.subview(Axis(0), i).subview(Axis(0), j));
+                for k in 0..self.z {
+                    self.map[[i, j, k]] /= temp_norm;
+                }
             }
         }
     }
