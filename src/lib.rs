@@ -28,8 +28,7 @@ impl SOM {
         // randomize: boolean; whether the SOM must be initialized with random weights or not
 
         let mut the_map = Array3::<f64>::zeros((length, breadth, inputs));
-        let mut the_activation_map = Array2::<f64>::zeros((length, breadth));
-        let mut init_regulate_lrate = 0;
+        let mut _init_regulate_lrate = 0;
 
         if randomize {
             for element in the_map.iter_mut() {
@@ -58,14 +57,14 @@ impl SOM {
                 Some(foo) => foo,
             },
             map: the_map,
-            regulate_lrate: init_regulate_lrate
+            regulate_lrate: _init_regulate_lrate
         }
     }
 
     fn winner(&self, elem: Array1<f64>) -> (usize, usize) {
         let mut temp: Array1<f64> = Array1::<f64>::zeros((self.z));
         let mut min: f64 = std::f64::MAX;
-        let mut temp_norm: f64 = 0.0;
+        let mut _temp_norm: f64 = 0.0;
         let mut ret: (usize, usize) = (0, 0);
 
         for i in 0..self.x {
@@ -74,10 +73,10 @@ impl SOM {
                     temp[k] = self.map[[i, j, k]] - elem[[k]];
                 }
 
-                temp_norm = norm(temp.view());
+                _temp_norm = norm(temp.view());
 
-                if temp_norm < min {
-                    min = temp_norm;
+                if _temp_norm < min {
+                    min = _temp_norm;
                     ret = (i, j);
                 }
             }
@@ -88,13 +87,12 @@ impl SOM {
 
     // Update the weights of the SOM
     fn update(&mut self, elem: Array1<f64>, winner: (usize, usize), iteration_index: u32) {
-        let mut new_lr = (self.decay_function)(self.learning_rate, iteration_index, self.regulate_lrate);
-        let mut new_sig = (self.decay_function)(self.sigma, iteration_index, self.regulate_lrate);
+        let new_lr = (self.decay_function)(self.learning_rate, iteration_index, self.regulate_lrate);
+        let new_sig = (self.decay_function)(self.sigma, iteration_index, self.regulate_lrate);
 
-        let mut g = (self.neighbourhood_function)((self.x, self.y), winner, new_sig as f32) * new_lr;
+        let g = (self.neighbourhood_function)((self.x, self.y), winner, new_sig as f32) * new_lr;
 
-        let mut new_elem: Array1<f64>;
-        let mut temp_norm: f64 = 0.0;
+        let mut _temp_norm: f64 = 0.0;
         
         for i in 0..self.x {
             for j in 0..self.y {
@@ -102,16 +100,16 @@ impl SOM {
                     self.map[[i, j, k]] += (elem[[k]] - self.map[[i, j, k]]) * g[[i, j]];
                 }
 
-                temp_norm = norm(self.map.subview(Axis(0), i).subview(Axis(0), j));
+                _temp_norm = norm(self.map.subview(Axis(0), i).subview(Axis(0), j));
                 for k in 0..self.z {
-                    self.map[[i, j, k]] /= temp_norm;
+                    self.map[[i, j, k]] /= _temp_norm;
                 }
             }
         }
     }
 
     // Trains the SOM by picking random data points as inputs from the dataset
-    pub fn train_random(&mut self, mut data: Array2<f64>, iterations: u32){
+    pub fn train_random(&mut self, data: Array2<f64>, iterations: u32){
         let mut random_value: i32;
         let mut temp1: Array1<f64>;
         let mut temp2: Array1<f64>;
@@ -130,7 +128,7 @@ impl SOM {
     }   
 
     // Trains the SOM by picking  data points in batches (sequentially) as inputs from the dataset
-    pub fn train_batch(&mut self, mut data: Array2<f64>, iterations: u32){
+    pub fn train_batch(&mut self, data: Array2<f64>, iterations: u32){
         let mut index: u32;
         let mut temp1: Array1<f64>;
         let mut temp2: Array1<f64>;
@@ -221,6 +219,7 @@ fn gaussian(size: (usize, usize), pos: (usize, usize), sigma: f32) -> Array2<f64
 }
 
 // Temporary main function for testing, should be removed when converted to proper library!
+/*
 fn main() {
     let mut map = SOM::create(2, 3, 5, false, Some(0.1), None, None, None);
     
@@ -231,4 +230,4 @@ fn main() {
 
     println!("{}", map);
     println!("{:?}", map.winner(Array1::from_elem(5, 1.5)));
-}
+}*/
