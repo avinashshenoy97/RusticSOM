@@ -120,14 +120,9 @@ impl SOM {
             temp1 = Array1::<f64>::zeros((ndarray::ArrayBase::dim(&data).1));
             temp2 = Array1::<f64>::zeros((ndarray::ArrayBase::dim(&data).1));
             random_value = rand::thread_rng().gen_range(0, ndarray::ArrayBase::dim(&data).0 as i32);
-            for i in 0..ndarray::ArrayBase::dim(&data).0 {
-                if i == random_value as usize {
-                    for j in 0..ndarray::ArrayBase::dim(&data).1 {
-                        temp1[j] = data[[i, j]];
-                        temp2[j] = data[[i, j]];
-                    }
-                    break;
-                }
+            for i in 0..ndarray::ArrayBase::dim(&data).1 {
+                temp1[i] = data[[random_value as usize, i]];
+                temp2[i] = data[[random_value as usize, i]];
             }
             let mut win = self.winner(temp1);
             self.update(temp2, win, iteration);
@@ -144,14 +139,9 @@ impl SOM {
             temp1 = Array1::<f64>::zeros((ndarray::ArrayBase::dim(&data).1));
             temp2 = Array1::<f64>::zeros((ndarray::ArrayBase::dim(&data).1));
             index = iteration % (ndarray::ArrayBase::dim(&data).0 - 1) as u32;
-            for i in 0..ndarray::ArrayBase::dim(&data).0 {
-                if i == index as usize {
-                    for j in 0..ndarray::ArrayBase::dim(&data).1 {
-                        temp1[j] = data[[i, j]];
-                        temp2[j] = data[[i, j]];
-                    }
-                    break;
-                }
+            for i in 0..ndarray::ArrayBase::dim(&data).1 {
+                temp1[i] = data[[index as usize, i]];
+                temp2[i] = data[[index as usize, i]];
             }
             let mut win = self.winner(temp1);
             self.update(temp2, win, iteration);
