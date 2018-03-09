@@ -3,7 +3,7 @@ extern crate ndarray;
 
 use rand::random as random;
 use rand::Rng;
-use ndarray::{Array2, Array3, Axis};
+use ndarray::{Array1, Array2, Array3, Axis, ArrayView1};
 use std::fmt;
 use std::f64::consts::PI as PI;
 
@@ -17,7 +17,7 @@ pub struct SOM {
     map: Array3<f64>,       // the SOM itself
     activation_map: Array2<f64>,       // the activation map
     decay_function: fn(f64, u64, u64) -> f64,          // the function used to decay learning_rate and sigma
-    neighbourhood_function: fn((usize, usize), (usize, usize), f64) -> Array2<f64>,          // the function used to decay learning_rate and sigma
+    neighbourhood_function: fn((usize, usize), (usize, usize), f64) -> Array2<f64>,          // the function that determines the weights of the neighbours
 }
 
 // Method definitions of the SOM struct
@@ -31,6 +31,7 @@ impl SOM {
         let mut the_map = Array3::<f64>::zeros((length, breadth, inputs));
         let mut the_activation_map = Array2::<f64>::zeros((length, breadth));
         let mut init_regulate_lrate = 0.0;
+
         if randomize {
             for element in the_map.iter_mut() {
                 *element = random::<f64>();
@@ -61,6 +62,30 @@ impl SOM {
             activation_map: the_activation_map,
             regulate_lrate: init_regulate_lrate
         }
+    }
+
+    fn winner(&self, elem: Array1<f64>) -> (usize, usize) {
+        let mut temp: Array1<f64> = Array1::<f64>::zeros((self.z));
+        let mut min: f64 = std::f64::MAX;
+        let mut temp_norm: f64 = 0.0;
+        let mut ret: (usize, usize) = (0, 0);
+
+        for i in 0..self.x {
+            for j in 0..self.y {
+                for k in 0..self.z {
+                    temp[k] = self.map[[i, j, k]] - elem[[k]];
+                }
+
+                temp_norm = norm(temp.view());
+
+                if temp_norm < min {
+                    min = temp_norm;
+                    ret = (i, j);
+                }
+            }
+        }
+
+        ret
     }
 
     // Trains the SOM by picking random data points as inputs from the dataset
@@ -108,6 +133,16 @@ impl fmt::Display for SOM {
     }
 }
 
+fn norm(a: ArrayView1<f64>) -> f64 {
+    let mut ret: f64 = 0.0;
+    
+    for i in a.iter() {
+        ret += i.powf(2.0);
+    }
+
+    ret.powf(0.5)
+}
+
 fn default_decay_function(val: f64, curr_iter: u64, max_iter: u64) -> f64 {
     (val as f64) / ((1 + (curr_iter/max_iter)) as f64)
 }
@@ -147,6 +182,13 @@ fn gaussian(size: (usize, usize), pos: (usize, usize), sigma: f64) -> Array2<f64
 
 // Temporary main function for testing, should be removed when converted to proper library!
 fn main() {
-    let map = SOM::create(2, 3, 5, true, Some(0.1), None, None, None);
+    let mut map = SOM::create(2, 3, 5, false, Some(0.1), None, None, None);
+    
+    for k in 0..5 {
+        map.map[[1, 1, k]] = 2.0;
+        map.map[[0, 1, k]] = 1.5;
+    }
+
     println!("{}", map);
+    println!("{:?}", map.winner(Array1::from_elem(5, 1.5)));
 }
