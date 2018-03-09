@@ -2,6 +2,7 @@ extern crate rand;
 extern crate ndarray;
 
 use rand::random as random;
+use rand::Rng;
 use ndarray::{Array2, Array3, Axis};
 use std::fmt;
 use std::f64::consts::PI as PI;
@@ -12,7 +13,9 @@ pub struct SOM {
     z: usize,               // size of inputs
     learning_rate: f32,   // initial learning rate
     sigma: f64,           // spread of neighbourhood function, default = 1.0
+    regulate_lrate: f64,    // Regulates the learning rate w.r.t the number of iterations
     map: Array3<f64>,       // the SOM itself
+    activation_map: Array2<f64>,       // the activation map
     decay_function: fn(f64, u64, u64) -> f64,          // the function used to decay learning_rate and sigma
     neighbourhood_function: fn((usize, usize), (usize, usize), f64) -> Array2<f64>,          // the function used to decay learning_rate and sigma
 }
@@ -26,7 +29,8 @@ impl SOM {
         // randomize: boolean; whether the SOM must be initialized with random weights or not
 
         let mut the_map = Array3::<f64>::zeros((length, breadth, inputs));
-
+        let mut the_activation_map = Array2::<f64>::zeros((length, breadth));
+        let mut init_regulate_lrate = 0.0;
         if randomize {
             for element in the_map.iter_mut() {
                 *element = random::<f64>();
@@ -54,9 +58,35 @@ impl SOM {
                 Some(foo) => foo,
             },
             map: the_map,
+            activation_map: the_activation_map,
+            regulate_lrate: init_regulate_lrate
         }
     }
 
+    // Trains the SOM by picking random data points as inputs from the dataset
+    fn train_random(mut self, mut data: Array2<f64>, iterations: u64){
+        let mut random_value: i32;
+        self.update_regulate_lrate(iterations);
+        for iteration in 0..iterations{
+            random_value = rand::thread_rng().gen_range(0, ndarray::ArrayBase::dim(&data).0 as i32);
+            // call to update function
+        }
+    }   
+
+    // Trains the SOM by picking  data points in batches (sequentially) as inputs from the dataset
+    fn train_batch(mut self, mut data: Array2<f64>, iterations: u64){
+        let mut index: u64;
+        self.update_regulate_lrate(ndarray::ArrayBase::dim(&data).0 as u64 * iterations);
+        for iteration in 0..iterations{
+            index = iteration % (ndarray::ArrayBase::dim(&data).0 - 1) as u64;
+            // call to update function
+        }
+    }  
+
+    // Update learning rate regulator (keep learning rate constant with increase in number of iterations)
+    fn update_regulate_lrate(mut self, iterations: u64){
+        self.regulate_lrate = ((iterations) / 2) as f64;
+    }
 }
 
 // To enable SOM objects to be printed with "print" and it's family of formatted string printing functions
@@ -74,7 +104,7 @@ impl fmt::Display for SOM {
             }
         }
 
-        write!(f, "\nSOM Shape = ({}, {})\nExpected input vectors of length = {}", self.x, self.y, self.z)
+        write!(f, "\nSOM Shape = ({}, {})\nExpected input vectors of length = {}\nSOM learning rate regulator = {}", self.x, self.y, self.z, self.regulate_lrate)
     }
 }
 
