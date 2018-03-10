@@ -3,7 +3,7 @@ extern crate ndarray;
 
 use rand::random as random;
 use rand::Rng;
-use ndarray::{Array1, Array2, Array3, Axis, ArrayView1};
+use ndarray::{Array1, Array2, Array3, Axis, ArrayView1, ArrayView2};
 use std::fmt;
 use std::f64::consts::PI as PI;
 
@@ -15,6 +15,7 @@ pub struct SOM {
     sigma: f32,           // spread of neighbourhood function, default = 1.0
     regulate_lrate: u32,    // Regulates the learning rate w.r.t the number of iterations
     map: Array3<f64>,       // the SOM itself
+    activation_map: Array2<usize>,              // each cell represents how many times the corresponding cell in SOM was winner
     decay_function: fn(f32, u32, u32) -> f64,          // the function used to decay learning_rate and sigma
     neighbourhood_function: fn((usize, usize), (usize, usize), f32) -> Array2<f64>,          // the function that determines the weights of the neighbours
 }
@@ -28,6 +29,7 @@ impl SOM {
         // randomize: boolean; whether the SOM must be initialized with random weights or not
 
         let mut the_map = Array3::<f64>::zeros((length, breadth, inputs));
+        let act_map = Array2::<usize>::zeros((length, breadth));
         let mut _init_regulate_lrate = 0;
 
         if randomize {
@@ -56,12 +58,13 @@ impl SOM {
                 None => gaussian,
                 Some(foo) => foo,
             },
+            activation_map: act_map,
             map: the_map,
             regulate_lrate: _init_regulate_lrate
         }
     }
 
-    fn winner(&self, elem: Array1<f64>) -> (usize, usize) {
+    fn winner(&mut self, elem: Array1<f64>) -> (usize, usize) {
         let mut temp: Array1<f64> = Array1::<f64>::zeros((self.z));
         let mut min: f64 = std::f64::MAX;
         let mut _temp_norm: f64 = 0.0;
@@ -80,6 +83,10 @@ impl SOM {
                     ret = (i, j);
                 }
             }
+        }
+
+        if let Some(elem) = self.activation_map.get_mut(ret) {
+            *(elem) += 1;
         }
 
         ret
@@ -150,6 +157,12 @@ impl SOM {
     fn update_regulate_lrate(&mut self, iterations: u32){
         self.regulate_lrate = iterations / 2;
     }
+
+    pub fn activation_response(&self) -> ArrayView2<usize> {
+        self.activation_map.view()
+    }
+
+    
 }
 
 // To enable SOM objects to be printed with "print" and it's family of formatted string printing functions
@@ -217,17 +230,3 @@ fn gaussian(size: (usize, usize), pos: (usize, usize), sigma: f32) -> Array2<f64
 
     ret
 }
-
-// Temporary main function for testing, should be removed when converted to proper library!
-/*
-fn main() {
-    let mut map = SOM::create(2, 3, 5, false, Some(0.1), None, None, None);
-    
-    for k in 0..5 {
-        map.map[[1, 1, k]] = 2.0;
-        map.map[[0, 1, k]] = 1.5;
-    }
-
-    println!("{}", map);
-    println!("{:?}", map.winner(Array1::from_elem(5, 1.5)));
-}*/
