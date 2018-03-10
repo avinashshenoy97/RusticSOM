@@ -6,7 +6,7 @@ license = "MIT"
 repository = "https://github.com/avinashshenoy97/RusticSOM"
 readme = "README.md"
 description = "Rust library for Self Organising Maps (SOM)."
-keywords = ["machine-learning", "SOM", "ML", "self-organizing map"]
+keywords = ["machine-learning", "SOM", "ML", "self-organizing-map"]
 categories = ["machine-learning"]
 exclude = [".DS_Store"]
 
