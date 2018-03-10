@@ -3,8 +3,8 @@ Rust library for Self Organising Maps (SOM).
 
 ![Status](https://img.shields.io/badge/status-active-brightgreen.svg?style=flat)
 [![Open Source Love](https://badges.frapsoft.com/os/v1/open-source.svg?v=103)]()
-[![License](https://img.shields.io/badge/license-mit-brightgreen.svg?style=flat)](https://github.com/aditisrinivas97/Bitmap4Rust/blob/master/LICENSE)
-[![](http://meritbadge.herokuapp.com/bitmap4rust)](https://crates.io/crates/rusticsom)
+[![License](https://img.shields.io/badge/license-mit-brightgreen.svg?style=flat)](https://github.com/aditisrinivas97/rusticsom/blob/master/LICENSE)
+[![](http://meritbadge.herokuapp.com/rusticsom)](https://crates.io/crates/rusticsom)
 
 ## Using this Crate
 
