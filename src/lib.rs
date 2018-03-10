@@ -184,6 +184,33 @@ impl SOM {
         (self.x, self.y)
     }
 
+    // Returns the distance map of each neuron / the normalised sum of a neuron to every other neuron in the map.
+    pub fn distance_map(self) -> Array2<f64> {
+        let mut dist_map = Array2::<f64>::zeros((self.x, self.y));
+        let mut temp_dist: f64;
+        let mut max_dist: f64 = 0.0;
+        for i in 0..self.x {
+            for j in 0..self.y {
+                temp_dist = 0.0;
+                for k in 0..self.x{
+                    for l in 0..self.y{
+                        temp_dist += euclid_dist(self.map.subview(Axis(0), i).subview(Axis(0), j), self.map.subview(Axis(0), k).subview(Axis(0), l));
+                    }
+                }
+                if temp_dist > max_dist {
+                    max_dist = temp_dist;
+                }
+                dist_map[[i, j]] = temp_dist;
+            }
+        }
+        for i in 0..self.x {
+            for j in 0..self.y {
+                dist_map[[i, j]] /= max_dist;
+            }
+        }
+        return dist_map;
+    }
+
     // Unit testing functions for setting individual cell weights
     #[cfg(test)]
     pub fn set_map_cell(&mut self, pos: (usize, usize, usize), val: f64) {

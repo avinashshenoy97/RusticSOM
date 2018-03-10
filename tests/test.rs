@@ -2,7 +2,7 @@ extern crate rusticsom;
 extern crate ndarray;
 
 use rusticsom::*;
-use ndarray::{Array1, Array2};
+use ndarray::{arr2, Array1, Array2};
 
 #[test]
 fn t_test_som() {
@@ -23,4 +23,8 @@ fn t_test_som() {
 fn t_test_size() {
     let map = SOM::create(2, 3, 5, false, Some(0.1), None, None, None);
     assert_eq!(map.get_size(), (2, 3));
+}
+#[test]
+fn t_distance_map(){
+    let mut map = SOM::create(2, 3, 5, false, Some(0.1), None, None, None);
 }
