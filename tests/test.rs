@@ -2,7 +2,7 @@ extern crate rusticsom;
 extern crate ndarray;
 
 use rusticsom::*;
-use ndarray::{arr2, Array1, Array2};
+use ndarray::{Array1, Array2};
 
 #[test]
 fn t_test_som() {
@@ -27,4 +27,14 @@ fn t_test_size() {
 #[test]
 fn t_distance_map(){
     let mut map = SOM::create(2, 3, 5, false, Some(0.1), None, None, None);
+    let mut temp_train = Array2::<f64>::zeros((2, 5));
+    for i in temp_train.iter_mut() {
+        *i = 1.0;
+    }
+
+    map.train_batch(temp_train, 1);
+    let dist = map.distance_map();
+    
+    assert_ne!(dist[[0, 0]], 0.0);
+    assert_ne!(dist[[1, 1]], 0.0);
 }

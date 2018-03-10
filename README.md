@@ -1,5 +1,20 @@
-# RustySOM
+# RusticSOM
 Rust library for Self Organising Maps (SOM).
+
+## Using this Crate
+
+Add `rusticsom` as a dependency in `Cargo.toml`
+
+```toml
+[dependencies]
+rusticsom = "0.1.0"
+```
+
+Include the crate 
+
+```rust
+extern crate rusticsom;
+```
 
 ## API
 
@@ -86,6 +101,14 @@ pub fn get_size(&self) -> (usize, usize)
 ```
 
 This function returns a tuple representing the size of the SOM. Format is `(length, breadth)`.
+
+---
+
+```rust
+pub fn distance_map(self) -> Array2<f64> { ... }
+```
+
+Returns the distance map of the SOM, i.e, the normalized distance of every neuron with every other neuron.
 
 ---
 
