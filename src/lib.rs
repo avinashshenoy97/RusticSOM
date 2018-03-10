@@ -64,7 +64,7 @@ impl SOM {
         }
     }
 
-    fn winner(&mut self, elem: Array1<f64>) -> (usize, usize) {
+    pub fn winner(&mut self, elem: Array1<f64>) -> (usize, usize) {
         let mut temp: Array1<f64> = Array1::<f64>::zeros((self.z));
         let mut min: f64 = std::f64::MAX;
         let mut _temp_norm: f64 = 0.0;
@@ -162,7 +162,37 @@ impl SOM {
         self.activation_map.view()
     }
 
-    
+
+    pub fn winner_dist(&mut self, elem: Array1<f64>) -> ((usize, usize), f64) {
+        let mut tempelem = Array1::<f64>::zeros(elem.len());
+        
+        for i in 0..elem.len() {
+            if let Some(temp) = tempelem.get_mut(i) {
+                *(temp) = elem[i];
+            }
+        }
+
+        let temp = self.winner(elem);
+
+        (temp, euclid_dist(self.map.subview(Axis(0), temp.0).subview(Axis(0), temp.1), tempelem.view()))
+    }
+
+    #[cfg(test)]
+    pub fn set_map_cell(&mut self, pos: (usize, usize, usize), val: f64) {
+        if let Some(elem) = self.map.get_mut(pos) {
+             *(elem) = val;
+        }
+    }
+
+    #[cfg(test)]
+    pub fn get_map_cell(&self, pos: (usize, usize, usize)) -> f64 {
+        if let Some(elem) = self.map.get(pos) {
+             *(elem)
+        }
+        else {
+            panic!("Invalid index!");
+        }
+    }
 }
 
 // To enable SOM objects to be printed with "print" and it's family of formatted string printing functions
@@ -229,4 +259,47 @@ fn gaussian(size: (usize, usize), pos: (usize, usize), sigma: f32) -> Array2<f64
     }
 
     ret
+}
+
+fn euclid_dist(a: ArrayView1<f64>, b: ArrayView1<f64>) -> f64 {
+    if a.len() != b.len() {
+        panic!("Both arrays must be of same length to find Euclidian distance!");
+    }
+
+    let mut dist: f64 = 0.0;
+
+    for i in 0..a.len() {
+        dist += (a[i] - b[i]).powf(2.0);
+    }
+
+    dist.powf(0.5)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_winner() {
+        let mut map = SOM::create(2, 3, 5, false, Some(0.1), None, None, None);
+
+        for k in 0..5 {
+            map.set_map_cell((1, 1, k), 1.5);
+        }
+
+        for k in 0..5 {
+            assert_eq!(map.get_map_cell((1, 1, k)), 1.5);
+        }
+
+        assert_eq!(map.winner(Array1::from(vec![1.5; 5])), (1, 1));
+        assert_eq!(map.winner(Array1::from(vec![0.5; 5])), (0, 0));
+    }
+
+    #[test]
+    fn test_euclid() {
+        let a = Array1::from(vec![1.0, 2.0, 3.0, 4.0]);
+        let b = Array1::from(vec![4.0, 5.0, 6.0, 7.0]);
+
+        assert_eq!(euclid_dist(a.view(), b.view()), 6.0);
+    }
 }
