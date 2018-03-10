@@ -18,3 +18,9 @@ fn t_test_som() {
     map.train_batch(temp_train, 1);
     assert_eq!(map.winner(Array1::from(vec![0.5; 5])), (0, 1));
 }
+
+#[test]
+fn t_test_size() {
+    let map = SOM::create(2, 3, 5, false, Some(0.1), None, None, None);
+    assert_eq!(map.get_size(), (2, 3));
+}

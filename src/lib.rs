@@ -64,6 +64,7 @@ impl SOM {
         }
     }
 
+    // To find and return the position of the winner neuron for a given input sample.
     pub fn winner(&mut self, elem: Array1<f64>) -> (usize, usize) {
         let mut temp: Array1<f64> = Array1::<f64>::zeros((self.z));
         let mut min: f64 = std::f64::MAX;
@@ -116,7 +117,7 @@ impl SOM {
     }
 
     // Trains the SOM by picking random data points as inputs from the dataset
-    pub fn train_random(&mut self, data: Array2<f64>, iterations: u32){
+    pub fn train_random(&mut self, data: Array2<f64>, iterations: u32) {
         let mut random_value: i32;
         let mut temp1: Array1<f64>;
         let mut temp2: Array1<f64>;
@@ -135,7 +136,7 @@ impl SOM {
     }   
 
     // Trains the SOM by picking  data points in batches (sequentially) as inputs from the dataset
-    pub fn train_batch(&mut self, data: Array2<f64>, iterations: u32){
+    pub fn train_batch(&mut self, data: Array2<f64>, iterations: u32) {
         let mut index: u32;
         let mut temp1: Array1<f64>;
         let mut temp2: Array1<f64>;
@@ -158,11 +159,12 @@ impl SOM {
         self.regulate_lrate = iterations / 2;
     }
 
+    // Returns the activation map of the SOM, where each cell at (i, j) represents how many times the cell at (i, j) in the SOM was picked a winner neuron.
     pub fn activation_response(&self) -> ArrayView2<usize> {
         self.activation_map.view()
     }
 
-
+    // Similar to winner(), but also returns distance of input sample from winner neuron.
     pub fn winner_dist(&mut self, elem: Array1<f64>) -> ((usize, usize), f64) {
         let mut tempelem = Array1::<f64>::zeros(elem.len());
         
@@ -177,6 +179,12 @@ impl SOM {
         (temp, euclid_dist(self.map.subview(Axis(0), temp.0).subview(Axis(0), temp.1), tempelem.view()))
     }
 
+    // Returns size of SOM.
+    pub fn get_size(&self) -> (usize, usize) {
+        (self.x, self.y)
+    }
+
+    // Unit testing functions for setting individual cell weights
     #[cfg(test)]
     pub fn set_map_cell(&mut self, pos: (usize, usize, usize), val: f64) {
         if let Some(elem) = self.map.get_mut(pos) {
@@ -184,6 +192,7 @@ impl SOM {
         }
     }
 
+    // Unit testing functions for getting individual cell weights
     #[cfg(test)]
     pub fn get_map_cell(&self, pos: (usize, usize, usize)) -> f64 {
         if let Some(elem) = self.map.get(pos) {
@@ -214,6 +223,7 @@ impl fmt::Display for SOM {
     }
 }
 
+// Returns the 2-norm of a vector represented as a 1D ArrayView
 fn norm(a: ArrayView1<f64>) -> f64 {
     let mut ret: f64 = 0.0;
     
@@ -224,6 +234,7 @@ fn norm(a: ArrayView1<f64>) -> f64 {
     ret.powf(0.5)
 }
 
+// The default decay function for LR and Sigma
 fn default_decay_function(val: f32, curr_iter: u32, max_iter: u32) -> f64 {
     (val as f64) / ((1 + (curr_iter/max_iter)) as f64)
 }
@@ -261,6 +272,7 @@ fn gaussian(size: (usize, usize), pos: (usize, usize), sigma: f32) -> Array2<f64
     ret
 }
 
+// Returns the euclidian distance between 2 vectors
 fn euclid_dist(a: ArrayView1<f64>, b: ArrayView1<f64>) -> f64 {
     if a.len() != b.len() {
         panic!("Both arrays must be of same length to find Euclidian distance!");
@@ -275,6 +287,7 @@ fn euclid_dist(a: ArrayView1<f64>, b: ArrayView1<f64>) -> f64 {
     dist.powf(0.5)
 }
 
+// Unit-testing module - only compiled when "cargo test" is run!
 #[cfg(test)]
 mod tests {
     use super::*;
