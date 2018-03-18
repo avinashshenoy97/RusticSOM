@@ -185,7 +185,7 @@ impl SOM {
     }
 
     // Returns the distance map of each neuron / the normalised sum of a neuron to every other neuron in the map.
-    pub fn distance_map(self) -> Array2<f64> {
+    pub fn distance_map(&self) -> Array2<f64> {
         let mut dist_map = Array2::<f64>::zeros((self.x, self.y));
         let mut temp_dist: f64;
         let mut max_dist: f64 = 0.0;
