@@ -12,7 +12,7 @@ Add `rusticsom` as a dependency in `Cargo.toml`
 
 ```toml
 [dependencies]
-rusticsom = "0.1.0"
+rusticsom = "1.0.0"
 ```
 
 Include the crate 
