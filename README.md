@@ -1,13 +1,18 @@
 # RusticSOM
 Rust library for Self Organising Maps (SOM).
 
+![Status](https://img.shields.io/badge/status-active-brightgreen.svg?style=flat)
+[![Open Source Love](https://badges.frapsoft.com/os/v1/open-source.svg?v=103)]()
+[![License](https://img.shields.io/badge/license-mit-brightgreen.svg?style=flat)](https://github.com/aditisrinivas97/rusticsom/blob/master/LICENSE)
+[![](http://meritbadge.herokuapp.com/rusticsom)](https://crates.io/crates/rusticsom)
+
 ## Using this Crate
 
 Add `rusticsom` as a dependency in `Cargo.toml`
 
 ```toml
 [dependencies]
-rusticsom = "0.1.0"
+rusticsom = "1.0.0"
 ```
 
 Include the crate 
@@ -118,3 +123,30 @@ Returns the distance map of the SOM, i.e, the normalized distance of every neuro
 |:-:|:-:|
 | <img src="https://github.com/aditisrinivas97.png" width="75"> | [Aditi Srinivas](https://github.com/aditisrinivas97) |
 | <img src="https://github.com/avinashshenoy97.png" width="75"> | [Avinash Shenoy](https://github.com/avinashshenoy97) |
+
+---
+
+---
+
+## Example
+
+We've tested this crate on the famous iris dataset (present in csv format in the `extras` folder).
+
+The `t_full_test` function in `/tests/test.rs` was used to produce the required output. The following plots were obtained using matplotlib for Python.
+
+Using a 5 x 5 SOM, trained for 250 iterations :
+
+![SOM1](https://github.com/avinashshenoy97/rusticsom/blob/master/extras/5x5_250iter_random.png)
+
+---
+
+Using a 10 x 10 SOM, trained for 1000 iterations :
+
+![SOM1](https://github.com/avinashshenoy97/rusticsom/blob/master/extras/10x10_1000iter_random.png)
+
+
+| Symbol | Represents |
+|:-:|:-:|
+|Circle|setosa|
+|Square|versicolor|
+|Diamond|virginica|
