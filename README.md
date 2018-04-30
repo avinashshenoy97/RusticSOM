@@ -5,6 +5,7 @@ Rust library for Self Organising Maps (SOM).
 [![Open Source Love](https://badges.frapsoft.com/os/v1/open-source.svg?v=103)]()
 [![License](https://img.shields.io/badge/license-mit-brightgreen.svg?style=flat)](https://github.com/aditisrinivas97/rusticsom/blob/master/LICENSE)
 [![](http://meritbadge.herokuapp.com/rusticsom)](https://crates.io/crates/rusticsom)
+[![Build Status](https://travis-ci.org/avinashshenoy97/RusticSOM.svg?branch=master)](https://travis-ci.org/avinashshenoy97/RusticSOM)
 
 ## Using this Crate
 
@@ -136,13 +137,13 @@ The `t_full_test` function in `/tests/test.rs` was used to produce the required 
 
 Using a 5 x 5 SOM, trained for 250 iterations :
 
-![SOM1](https://github.com/avinashshenoy97/rusticsom/blob/master/extras/5x5_250iter_random.png)
+![SOM1](https://github.com/avinashshenoy97/RusticSOM/blob/master/extras/5x5_250iter_random.png)
 
 ---
 
 Using a 10 x 10 SOM, trained for 1000 iterations :
 
-![SOM1](https://github.com/avinashshenoy97/rusticsom/blob/master/extras/10x10_1000iter_random.png)
+![SOM2](https://github.com/avinashshenoy97/RusticSOM/blob/master/extras/10x10_1000iter_random.png)
 
 
 | Symbol | Represents |
