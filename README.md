@@ -44,6 +44,14 @@ pub fn create(length: usize, breadth: usize, inputs: usize, randomize: bool, lea
 
 ---
 
+```rust
+    pub fn from_json(serialized: &str,  decay_function: Option<fn(f32, u32, u32) -> f64>, neighbourhood_function: Option<fn((usize, usize), (usize, usize), f32) -> Array2<f64>>) -> serde_json::Result<SOM> { ... }
+```
+
+This function allows to create a SOM from a previously exported SOM json data using SOM::to_json().
+
+---
+
 Use `SOM_Object.train_random()` to train the SOM with the input dataset, where samples from the input dataset are picked in a random order.
 
 ```rust
@@ -118,6 +126,13 @@ Returns the distance map of the SOM, i.e, the normalized distance of every neuro
 
 ---
 
+```rust
+pub fn to_json(&self) -> serde_json::Result<String> { ... }
+```
+
+Returns the internal SOM data as pretty printed json (using serde_json).
+
+---
 ## Primary Contributors
 
 |   |   |
