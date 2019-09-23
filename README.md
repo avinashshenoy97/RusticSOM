@@ -13,13 +13,13 @@ Add `rusticsom` as a dependency in `Cargo.toml`
 
 ```toml
 [dependencies]
-rusticsom = "1.0.0"
+rusticsom = { git = "https://github.com/gin66/RusticSOM.git", branch = "master" }
 ```
 
 Include the crate 
 
 ```rust
-extern crate rusticsom;
+use rusticsom::SOM;
 ```
 
 ## API
