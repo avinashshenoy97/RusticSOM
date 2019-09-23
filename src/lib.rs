@@ -1,11 +1,24 @@
-extern crate rand;
-extern crate ndarray;
+use rand;
+use ndarray;
+use serde::{Serialize, Deserialize};
 
 use rand::random as random;
 use rand::Rng;
 use ndarray::{Array1, Array2, Array3, Axis, ArrayView1, ArrayView2};
 use std::fmt;
 use std::f64::consts::PI as PI;
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SomData {
+    x: usize,               // length of SOM
+    y: usize,               // breadth of SOM
+    z: usize,               // size of inputs
+    learning_rate: f32,   // initial learning rate
+    sigma: f32,           // spread of neighbourhood function, default = 1.0
+    regulate_lrate: u32,    // Regulates the learning rate w.r.t the number of iterations
+    map: Array3<f64>,       // the SOM itself
+    activation_map: Array2<usize>,              // each cell represents how many times the corresponding cell in SOM was winner
+}
 
 pub struct SOM {
     x: usize,               // length of SOM
@@ -66,7 +79,7 @@ impl SOM {
 
     // To find and return the position of the winner neuron for a given input sample.
     pub fn winner(&mut self, elem: Array1<f64>) -> (usize, usize) {
-        let mut temp: Array1<f64> = Array1::<f64>::zeros((self.z));
+        let mut temp: Array1<f64> = Array1::<f64>::zeros(self.z);
         let mut min: f64 = std::f64::MAX;
         let mut _temp_norm: f64 = 0.0;
         let mut ret: (usize, usize) = (0, 0);
@@ -123,14 +136,14 @@ impl SOM {
         let mut temp2: Array1<f64>;
         self.update_regulate_lrate(iterations);
         for iteration in 0..iterations{
-            temp1 = Array1::<f64>::zeros((ndarray::ArrayBase::dim(&data).1));
-            temp2 = Array1::<f64>::zeros((ndarray::ArrayBase::dim(&data).1));
+            temp1 = Array1::<f64>::zeros(ndarray::ArrayBase::dim(&data).1);
+            temp2 = Array1::<f64>::zeros(ndarray::ArrayBase::dim(&data).1);
             random_value = rand::thread_rng().gen_range(0, ndarray::ArrayBase::dim(&data).0 as i32);
             for i in 0..ndarray::ArrayBase::dim(&data).1 {
                 temp1[i] = data[[random_value as usize, i]];
                 temp2[i] = data[[random_value as usize, i]];
             }
-            let mut win = self.winner(temp1);
+            let win = self.winner(temp1);
             self.update(temp2, win, iteration);
         }
     }   
@@ -142,14 +155,14 @@ impl SOM {
         let mut temp2: Array1<f64>;
         self.update_regulate_lrate(ndarray::ArrayBase::dim(&data).0 as u32 * iterations);
         for iteration in 0..iterations{
-            temp1 = Array1::<f64>::zeros((ndarray::ArrayBase::dim(&data).1));
-            temp2 = Array1::<f64>::zeros((ndarray::ArrayBase::dim(&data).1));
+            temp1 = Array1::<f64>::zeros(ndarray::ArrayBase::dim(&data).1);
+            temp2 = Array1::<f64>::zeros(ndarray::ArrayBase::dim(&data).1);
             index = iteration % (ndarray::ArrayBase::dim(&data).0 - 1) as u32;
             for i in 0..ndarray::ArrayBase::dim(&data).1 {
                 temp1[i] = data[[index as usize, i]];
                 temp2[i] = data[[index as usize, i]];
             }
-            let mut win = self.winner(temp1);
+            let win = self.winner(temp1);
             self.update(temp2, win, iteration);
         }
     }  
