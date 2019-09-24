@@ -1,6 +1,6 @@
 [package]
 name = "rusticsom"
-version = "1.0.0"
+version = "1.1.0"
 authors = ["Avinash Shenoy <avi123shenoy@hotmail.com>", "Aditi Srinivas <aditisrinivas97@gmail.com>"]
 license = "MIT"
 repository = "https://github.com/avinashshenoy97/RusticSOM"
