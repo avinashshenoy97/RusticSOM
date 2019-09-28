@@ -13,13 +13,13 @@ Add `rusticsom` as a dependency in `Cargo.toml`
 
 ```toml
 [dependencies]
-rusticsom = "1.0.0"
+rusticsom = "1.1.0"
 ```
 
 Include the crate 
 
 ```rust
-extern crate rusticsom;
+use rusticsom::SOM;
 ```
 
 ## API
@@ -41,6 +41,14 @@ pub fn create(length: usize, breadth: usize, inputs: usize, randomize: bool, lea
     new_value = old_value / (1 + current_iteration/total_iterations)
 
 `neighbourhood_function`, optional, is also a function pointer that accepts functions that take 3 parameters, a tuple of type `(usize, usize)` representing the size of the SOM, another tuple of type `(usize, usize)` representing the position of the winner neuron, and an `f32` representing `sigma`; and returns a 2D Array containing weights of the neighbours of the winning neuron, i.e, centered at `winner`. By default, the Gaussian function will be used, which returns a "Gaussian centered at the winner neuron".
+
+---
+
+```rust
+    pub fn from_json(serialized: &str,  decay_function: Option<fn(f32, u32, u32) -> f64>, neighbourhood_function: Option<fn((usize, usize), (usize, usize), f32) -> Array2<f64>>) -> serde_json::Result<SOM> { ... }
+```
+
+This function allows to create a SOM from a previously exported SOM json data using SOM::to_json().
 
 ---
 
@@ -118,6 +126,13 @@ Returns the distance map of the SOM, i.e, the normalized distance of every neuro
 
 ---
 
+```rust
+pub fn to_json(&self) -> serde_json::Result<String> { ... }
+```
+
+Returns the internal SOM data as pretty printed json (using serde_json).
+
+---
 ## Primary Contributors
 
 |   |   |

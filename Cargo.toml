@@ -1,6 +1,6 @@
 [package]
 name = "rusticsom"
-version = "1.0.0"
+version = "1.1.0"
 authors = ["Avinash Shenoy <avi123shenoy@hotmail.com>", "Aditi Srinivas <aditisrinivas97@gmail.com>"]
 license = "MIT"
 repository = "https://github.com/avinashshenoy97/RusticSOM"
@@ -9,7 +9,10 @@ description = "Rust library for Self Organising Maps (SOM)."
 keywords = ["SOM", "ML", "self-organizing-map"]
 categories = ["machine-learning"]
 exclude = [".DS_Store"]
+edition = "2018"
 
 [dependencies]
 rand = "0.4"
-ndarray = "0.11"
+ndarray = { version = "0.11", features = ["serde-1"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"

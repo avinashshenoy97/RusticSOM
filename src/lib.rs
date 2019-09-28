@@ -1,5 +1,6 @@
-extern crate rand;
-extern crate ndarray;
+use rand;
+use ndarray;
+use serde::{Serialize, Deserialize};
 
 use rand::random as random;
 use rand::Rng;
@@ -7,7 +8,8 @@ use ndarray::{Array1, Array2, Array3, Axis, ArrayView1, ArrayView2};
 use std::fmt;
 use std::f64::consts::PI as PI;
 
-pub struct SOM {
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SomData {
     x: usize,               // length of SOM
     y: usize,               // breadth of SOM
     z: usize,               // size of inputs
@@ -16,6 +18,10 @@ pub struct SOM {
     regulate_lrate: u32,    // Regulates the learning rate w.r.t the number of iterations
     map: Array3<f64>,       // the SOM itself
     activation_map: Array2<usize>,              // each cell represents how many times the corresponding cell in SOM was winner
+}
+
+pub struct SOM {
+    data: SomData,
     decay_function: fn(f32, u32, u32) -> f64,          // the function used to decay learning_rate and sigma
     neighbourhood_function: fn((usize, usize), (usize, usize), f32) -> Array2<f64>,          // the function that determines the weights of the neighbours
 }
@@ -38,7 +44,7 @@ impl SOM {
             }
         }
 
-        SOM {
+        let data = SomData {
             x: length,
             y: breadth,
             z: inputs,
@@ -50,6 +56,12 @@ impl SOM {
                 None => 1.0,
                 Some(value) => value,
             },
+            activation_map: act_map,
+            map: the_map,
+            regulate_lrate: _init_regulate_lrate
+        };
+        SOM {
+            data,
             decay_function: match decay_function {
                 None => default_decay_function,
                 Some(foo) => foo,
@@ -58,23 +70,20 @@ impl SOM {
                 None => gaussian,
                 Some(foo) => foo,
             },
-            activation_map: act_map,
-            map: the_map,
-            regulate_lrate: _init_regulate_lrate
         }
     }
 
     // To find and return the position of the winner neuron for a given input sample.
     pub fn winner(&mut self, elem: Array1<f64>) -> (usize, usize) {
-        let mut temp: Array1<f64> = Array1::<f64>::zeros((self.z));
+        let mut temp: Array1<f64> = Array1::<f64>::zeros(self.data.z);
         let mut min: f64 = std::f64::MAX;
         let mut _temp_norm: f64 = 0.0;
         let mut ret: (usize, usize) = (0, 0);
 
-        for i in 0..self.x {
-            for j in 0..self.y {
-                for k in 0..self.z {
-                    temp[k] = self.map[[i, j, k]] - elem[[k]];
+        for i in 0..self.data.x {
+            for j in 0..self.data.y {
+                for k in 0..self.data.z {
+                    temp[k] = self.data.map[[i, j, k]] - elem[[k]];
                 }
 
                 _temp_norm = norm(temp.view());
@@ -86,31 +95,50 @@ impl SOM {
             }
         }
 
-        if let Some(elem) = self.activation_map.get_mut(ret) {
+        if let Some(elem) = self.data.activation_map.get_mut(ret) {
             *(elem) += 1;
         }
 
         ret
     }
 
+    pub fn from_json(serialized: &str,  decay_function: Option<fn(f32, u32, u32) -> f64>, neighbourhood_function: Option<fn((usize, usize), (usize, usize), f32) -> Array2<f64>>) -> serde_json::Result<SOM> {
+        let data: SomData = serde_json::from_str(&serialized)?;
+
+        Ok(SOM {
+            data,
+            decay_function: match decay_function {
+                None => default_decay_function,
+                Some(foo) => foo,
+            },
+            neighbourhood_function: match neighbourhood_function {
+                None => gaussian,
+                Some(foo) => foo,
+            },
+        })
+    }
+    pub fn to_json(&self) -> serde_json::Result<String> {
+        serde_json::to_string_pretty(&self.data)
+    }
+
     // Update the weights of the SOM
     fn update(&mut self, elem: Array1<f64>, winner: (usize, usize), iteration_index: u32) {
-        let new_lr = (self.decay_function)(self.learning_rate, iteration_index, self.regulate_lrate);
-        let new_sig = (self.decay_function)(self.sigma, iteration_index, self.regulate_lrate);
+        let new_lr = (self.decay_function)(self.data.learning_rate, iteration_index, self.data.regulate_lrate);
+        let new_sig = (self.decay_function)(self.data.sigma, iteration_index, self.data.regulate_lrate);
 
-        let g = (self.neighbourhood_function)((self.x, self.y), winner, new_sig as f32) * new_lr;
+        let g = (self.neighbourhood_function)((self.data.x, self.data.y), winner, new_sig as f32) * new_lr;
 
         let mut _temp_norm: f64 = 0.0;
         
-        for i in 0..self.x {
-            for j in 0..self.y {
-                for k in 0..self.z {
-                    self.map[[i, j, k]] += (elem[[k]] - self.map[[i, j, k]]) * g[[i, j]];
+        for i in 0..self.data.x {
+            for j in 0..self.data.y {
+                for k in 0..self.data.z {
+                    self.data.map[[i, j, k]] += (elem[[k]] - self.data.map[[i, j, k]]) * g[[i, j]];
                 }
 
-                _temp_norm = norm(self.map.subview(Axis(0), i).subview(Axis(0), j));
-                for k in 0..self.z {
-                    self.map[[i, j, k]] /= _temp_norm;
+                _temp_norm = norm(self.data.map.subview(Axis(0), i).subview(Axis(0), j));
+                for k in 0..self.data.z {
+                    self.data.map[[i, j, k]] /= _temp_norm;
                 }
             }
         }
@@ -123,14 +151,14 @@ impl SOM {
         let mut temp2: Array1<f64>;
         self.update_regulate_lrate(iterations);
         for iteration in 0..iterations{
-            temp1 = Array1::<f64>::zeros((ndarray::ArrayBase::dim(&data).1));
-            temp2 = Array1::<f64>::zeros((ndarray::ArrayBase::dim(&data).1));
+            temp1 = Array1::<f64>::zeros(ndarray::ArrayBase::dim(&data).1);
+            temp2 = Array1::<f64>::zeros(ndarray::ArrayBase::dim(&data).1);
             random_value = rand::thread_rng().gen_range(0, ndarray::ArrayBase::dim(&data).0 as i32);
             for i in 0..ndarray::ArrayBase::dim(&data).1 {
                 temp1[i] = data[[random_value as usize, i]];
                 temp2[i] = data[[random_value as usize, i]];
             }
-            let mut win = self.winner(temp1);
+            let win = self.winner(temp1);
             self.update(temp2, win, iteration);
         }
     }   
@@ -142,26 +170,26 @@ impl SOM {
         let mut temp2: Array1<f64>;
         self.update_regulate_lrate(ndarray::ArrayBase::dim(&data).0 as u32 * iterations);
         for iteration in 0..iterations{
-            temp1 = Array1::<f64>::zeros((ndarray::ArrayBase::dim(&data).1));
-            temp2 = Array1::<f64>::zeros((ndarray::ArrayBase::dim(&data).1));
+            temp1 = Array1::<f64>::zeros(ndarray::ArrayBase::dim(&data).1);
+            temp2 = Array1::<f64>::zeros(ndarray::ArrayBase::dim(&data).1);
             index = iteration % (ndarray::ArrayBase::dim(&data).0 - 1) as u32;
             for i in 0..ndarray::ArrayBase::dim(&data).1 {
                 temp1[i] = data[[index as usize, i]];
                 temp2[i] = data[[index as usize, i]];
             }
-            let mut win = self.winner(temp1);
+            let win = self.winner(temp1);
             self.update(temp2, win, iteration);
         }
     }  
 
     // Update learning rate regulator (keep learning rate constant with increase in number of iterations)
     fn update_regulate_lrate(&mut self, iterations: u32){
-        self.regulate_lrate = iterations / 2;
+        self.data.regulate_lrate = iterations / 2;
     }
 
     // Returns the activation map of the SOM, where each cell at (i, j) represents how many times the cell at (i, j) in the SOM was picked a winner neuron.
     pub fn activation_response(&self) -> ArrayView2<usize> {
-        self.activation_map.view()
+        self.data.activation_map.view()
     }
 
     // Similar to winner(), but also returns distance of input sample from winner neuron.
@@ -176,25 +204,25 @@ impl SOM {
 
         let temp = self.winner(elem);
 
-        (temp, euclid_dist(self.map.subview(Axis(0), temp.0).subview(Axis(0), temp.1), tempelem.view()))
+        (temp, euclid_dist(self.data.map.subview(Axis(0), temp.0).subview(Axis(0), temp.1), tempelem.view()))
     }
 
     // Returns size of SOM.
     pub fn get_size(&self) -> (usize, usize) {
-        (self.x, self.y)
+        (self.data.x, self.data.y)
     }
 
     // Returns the distance map of each neuron / the normalised sum of a neuron to every other neuron in the map.
     pub fn distance_map(&self) -> Array2<f64> {
-        let mut dist_map = Array2::<f64>::zeros((self.x, self.y));
+        let mut dist_map = Array2::<f64>::zeros((self.data.x, self.data.y));
         let mut temp_dist: f64;
         let mut max_dist: f64 = 0.0;
-        for i in 0..self.x {
-            for j in 0..self.y {
+        for i in 0..self.data.x {
+            for j in 0..self.data.y {
                 temp_dist = 0.0;
-                for k in 0..self.x{
-                    for l in 0..self.y{
-                        temp_dist += euclid_dist(self.map.subview(Axis(0), i).subview(Axis(0), j), self.map.subview(Axis(0), k).subview(Axis(0), l));
+                for k in 0..self.data.x{
+                    for l in 0..self.data.y{
+                        temp_dist += euclid_dist(self.data.map.subview(Axis(0), i).subview(Axis(0), j), self.data.map.subview(Axis(0), k).subview(Axis(0), l));
                     }
                 }
                 if temp_dist > max_dist {
@@ -203,8 +231,8 @@ impl SOM {
                 dist_map[[i, j]] = temp_dist;
             }
         }
-        for i in 0..self.x {
-            for j in 0..self.y {
+        for i in 0..self.data.x {
+            for j in 0..self.data.y {
                 dist_map[[i, j]] /= max_dist;
             }
         }
@@ -214,7 +242,7 @@ impl SOM {
     // Unit testing functions for setting individual cell weights
     #[cfg(test)]
     pub fn set_map_cell(&mut self, pos: (usize, usize, usize), val: f64) {
-        if let Some(elem) = self.map.get_mut(pos) {
+        if let Some(elem) = self.data.map.get_mut(pos) {
              *(elem) = val;
         }
     }
@@ -222,7 +250,7 @@ impl SOM {
     // Unit testing functions for getting individual cell weights
     #[cfg(test)]
     pub fn get_map_cell(&self, pos: (usize, usize, usize)) -> f64 {
-        if let Some(elem) = self.map.get(pos) {
+        if let Some(elem) = self.data.map.get(pos) {
              *(elem)
         }
         else {
@@ -236,17 +264,17 @@ impl fmt::Display for SOM {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let (mut i, mut j) = (0, 0);
 
-        for vector in self.map.lanes(Axis(2)) {
+        for vector in self.data.map.lanes(Axis(2)) {
             println!("[{}, {}] : {}", i, j, vector);
 
             j += 1;
-            if j == self.y {
+            if j == self.data.y {
                 j = 0;
                 i += 1;
             }
         }
 
-        write!(f, "\nSOM Shape = ({}, {})\nExpected input vectors of length = {}\nSOM learning rate regulator = {}", self.x, self.y, self.z, self.regulate_lrate)
+        write!(f, "\nSOM Shape = ({}, {})\nExpected input vectors of length = {}\nSOM learning rate regulator = {}", self.data.x, self.data.y, self.data.z, self.data.regulate_lrate)
     }
 }
 
