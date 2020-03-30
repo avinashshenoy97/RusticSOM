@@ -2,7 +2,7 @@ extern crate rusticsom;
 extern crate ndarray;
 
 use rusticsom::*;
-use ndarray::{Array1, Array2};
+use ndarray::{Array2};
 
 #[test]
 fn t_full_test() {

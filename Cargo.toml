@@ -1,6 +1,6 @@
 [package]
 name = "rusticsom"
-version = "1.1.0"
+version = "1.1.1"
 authors = ["Avinash Shenoy <avi123shenoy@hotmail.com>", "Aditi Srinivas <aditisrinivas97@gmail.com>"]
 license = "MIT"
 repository = "https://github.com/avinashshenoy97/RusticSOM"
@@ -13,6 +13,6 @@ edition = "2018"
 
 [dependencies]
 rand = "0.4"
-ndarray = { version = "0.11", features = ["serde-1"] }
+ndarray = { version = "0.13", features = ["serde-1"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
