@@ -136,7 +136,7 @@ impl SOM {
                     self.data.map[[i, j, k]] += (elem[[k]] - self.data.map[[i, j, k]]) * g[[i, j]];
                 }
 
-                _temp_norm = norm(self.data.map.subview(Axis(0), i).subview(Axis(0), j));
+                _temp_norm = norm(self.data.map.index_axis(Axis(0), i).index_axis(Axis(0), j));
                 for k in 0..self.data.z {
                     self.data.map[[i, j, k]] /= _temp_norm;
                 }
@@ -204,7 +204,7 @@ impl SOM {
 
         let temp = self.winner(elem);
 
-        (temp, euclid_dist(self.data.map.subview(Axis(0), temp.0).subview(Axis(0), temp.1), tempelem.view()))
+        (temp, euclid_dist(self.data.map.index_axis(Axis(0), temp.0).index_axis(Axis(0), temp.1), tempelem.view()))
     }
 
     // Returns size of SOM.
@@ -222,7 +222,7 @@ impl SOM {
                 temp_dist = 0.0;
                 for k in 0..self.data.x{
                     for l in 0..self.data.y{
-                        temp_dist += euclid_dist(self.data.map.subview(Axis(0), i).subview(Axis(0), j), self.data.map.subview(Axis(0), k).subview(Axis(0), l));
+                        temp_dist += euclid_dist(self.data.map.index_axis(Axis(0), i).index_axis(Axis(0), j), self.data.map.index_axis(Axis(0), k).index_axis(Axis(0), l));
                     }
                 }
                 if temp_dist > max_dist {
