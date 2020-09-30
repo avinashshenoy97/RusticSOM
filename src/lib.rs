@@ -17,15 +17,22 @@ pub struct SomData {
     activation_map: Array2<usize>, // each cell represents how many times the corresponding cell in SOM was winner
 }
 
+/// A function for determining neighbours' weights.
+pub type NeighbourhoodFn = fn((usize, usize), (usize, usize), f32) -> Array2<f64>;
+
+/// A function for decaying `learning_rate` and `sigma`.
+pub type DecayFn = fn(f32, u32, u32) -> f64;
+
 pub struct SOM {
     data: SomData,
-    decay_function: fn(f32, u32, u32) -> f64, // the function used to decay learning_rate and sigma
-    neighbourhood_function: fn((usize, usize), (usize, usize), f32) -> Array2<f64>, // the function that determines the weights of the neighbours
+    decay_fn: DecayFn,
+    neighbourhood_fn: NeighbourhoodFn,
 }
 
 // Method definitions of the SOM struct
 impl SOM {
     // To create a Self-Organizing Map (SOM)
+    #[allow(clippy::too_many_arguments)]
     pub fn create(
         length: usize,
         breadth: usize,
@@ -33,8 +40,8 @@ impl SOM {
         randomize: bool,
         learning_rate: Option<f32>,
         sigma: Option<f32>,
-        decay_function: Option<fn(f32, u32, u32) -> f64>,
-        neighbourhood_function: Option<fn((usize, usize), (usize, usize), f32) -> Array2<f64>>,
+        decay_fn: Option<DecayFn>,
+        neighbourhood_fn: Option<NeighbourhoodFn>,
     ) -> SOM {
         // Map of "length" x "breadth" is created, with depth "inputs" (for input vectors accepted by this SOM)
         // randomize: boolean; whether the SOM must be initialized with random weights or not
@@ -53,28 +60,16 @@ impl SOM {
             x: length,
             y: breadth,
             z: inputs,
-            learning_rate: match learning_rate {
-                None => 0.5,
-                Some(value) => value,
-            },
-            sigma: match sigma {
-                None => 1.0,
-                Some(value) => value,
-            },
+            learning_rate: learning_rate.unwrap_or(0.5),
+            sigma: sigma.unwrap_or(1.0),
             activation_map: act_map,
             map: the_map,
             regulate_lrate: _init_regulate_lrate,
         };
         SOM {
             data,
-            decay_function: match decay_function {
-                None => default_decay_function,
-                Some(foo) => foo,
-            },
-            neighbourhood_function: match neighbourhood_function {
-                None => gaussian,
-                Some(foo) => foo,
-            },
+            decay_fn: decay_fn.unwrap_or(default_decay_fn),
+            neighbourhood_fn: neighbourhood_fn.unwrap_or(gaussian),
         }
     }
 
@@ -109,21 +104,15 @@ impl SOM {
 
     pub fn from_json(
         serialized: &str,
-        decay_function: Option<fn(f32, u32, u32) -> f64>,
-        neighbourhood_function: Option<fn((usize, usize), (usize, usize), f32) -> Array2<f64>>,
+        decay_fn: Option<DecayFn>,
+        neighbourhood_fn: Option<NeighbourhoodFn>,
     ) -> serde_json::Result<SOM> {
         let data: SomData = serde_json::from_str(&serialized)?;
 
         Ok(SOM {
             data,
-            decay_function: match decay_function {
-                None => default_decay_function,
-                Some(foo) => foo,
-            },
-            neighbourhood_function: match neighbourhood_function {
-                None => gaussian,
-                Some(foo) => foo,
-            },
+            decay_fn: decay_fn.unwrap_or(default_decay_fn),
+            neighbourhood_fn: neighbourhood_fn.unwrap_or(gaussian),
         })
     }
     pub fn to_json(&self) -> serde_json::Result<String> {
@@ -132,16 +121,15 @@ impl SOM {
 
     // Update the weights of the SOM
     fn update(&mut self, elem: Array1<f64>, winner: (usize, usize), iteration_index: u32) {
-        let new_lr = (self.decay_function)(
+        let new_lr = (self.decay_fn)(
             self.data.learning_rate,
             iteration_index,
             self.data.regulate_lrate,
         );
-        let new_sig =
-            (self.decay_function)(self.data.sigma, iteration_index, self.data.regulate_lrate);
+        let new_sig = (self.decay_fn)(self.data.sigma, iteration_index, self.data.regulate_lrate);
 
-        let g = (self.neighbourhood_function)((self.data.x, self.data.y), winner, new_sig as f32)
-            * new_lr;
+        let g =
+            (self.neighbourhood_fn)((self.data.x, self.data.y), winner, new_sig as f32) * new_lr;
 
         let mut _temp_norm: f64 = 0.0;
 
@@ -263,7 +251,7 @@ impl SOM {
                 dist_map[[i, j]] /= max_dist;
             }
         }
-        return dist_map;
+        dist_map
     }
 
     // Unit testing functions for setting individual cell weights
@@ -316,7 +304,7 @@ fn norm(a: ArrayView1<f64>) -> f64 {
 }
 
 // The default decay function for LR and Sigma
-fn default_decay_function(val: f32, curr_iter: u32, max_iter: u32) -> f64 {
+fn default_decay_fn(val: f32, curr_iter: u32, max_iter: u32) -> f64 {
     (val as f64) / ((1 + (curr_iter / max_iter)) as f64)
 }
 
