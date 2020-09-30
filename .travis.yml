@@ -5,3 +5,12 @@ branches:
         - master
 rust:
   - stable
+
+before_script:
+  - rustup component add clippy
+  - rustup component add rustfmt
+
+script:
+  - cargo test --verbose
+  - cargo fmt -- --check
+  - cargo clippy -- -Dclippy::all
