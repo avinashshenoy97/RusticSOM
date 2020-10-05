@@ -45,16 +45,13 @@ impl SOM {
     ) -> SOM {
         // Map of "length" x "breadth" is created, with depth "inputs" (for input vectors accepted by this SOM)
         // randomize: boolean; whether the SOM must be initialized with random weights or not
+        let the_map = if randomize {
+            Array3::from_shape_simple_fn((length, breadth, inputs), random)
+        } else {
+            Array3::zeros((length, breadth, inputs))
+        };
 
-        let mut the_map = Array3::<f64>::zeros((length, breadth, inputs));
-        let act_map = Array2::<usize>::zeros((length, breadth));
-        let mut _init_regulate_lrate = 0;
-
-        if randomize {
-            for element in the_map.iter_mut() {
-                *element = random::<f64>();
-            }
-        }
+        let act_map = Array2::zeros((length, breadth));
 
         let data = SomData {
             x: length,
@@ -64,7 +61,7 @@ impl SOM {
             sigma: sigma.unwrap_or(1.0),
             activation_map: act_map,
             map: the_map,
-            regulate_lrate: _init_regulate_lrate,
+            regulate_lrate: 0,
         };
         SOM {
             data,
@@ -77,7 +74,6 @@ impl SOM {
     pub fn winner(&mut self, elem: Array1<f64>) -> (usize, usize) {
         let mut temp: Array1<f64> = Array1::<f64>::zeros(self.data.z);
         let mut min: f64 = std::f64::MAX;
-        let mut _temp_norm: f64 = 0.0;
         let mut ret: (usize, usize) = (0, 0);
 
         for i in 0..self.data.x {
@@ -86,10 +82,10 @@ impl SOM {
                     temp[k] = self.data.map[[i, j, k]] - elem[[k]];
                 }
 
-                _temp_norm = norm(temp.view());
+                let norm = norm(temp.view());
 
-                if _temp_norm < min {
-                    min = _temp_norm;
+                if norm < min {
+                    min = norm;
                     ret = (i, j);
                 }
             }
@@ -131,17 +127,15 @@ impl SOM {
         let g =
             (self.neighbourhood_fn)((self.data.x, self.data.y), winner, new_sig as f32) * new_lr;
 
-        let mut _temp_norm: f64 = 0.0;
-
         for i in 0..self.data.x {
             for j in 0..self.data.y {
                 for k in 0..self.data.z {
                     self.data.map[[i, j, k]] += (elem[[k]] - self.data.map[[i, j, k]]) * g[[i, j]];
                 }
 
-                _temp_norm = norm(self.data.map.index_axis(Axis(0), i).index_axis(Axis(0), j));
+                let norm = norm(self.data.map.index_axis(Axis(0), i).index_axis(Axis(0), j));
                 for k in 0..self.data.z {
-                    self.data.map[[i, j, k]] /= _temp_norm;
+                    self.data.map[[i, j, k]] /= norm;
                 }
             }
         }
