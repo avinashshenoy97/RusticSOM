@@ -297,10 +297,10 @@ fn norm(a: ArrayView1<f64>) -> f64 {
     let mut ret: f64 = 0.0;
 
     for i in a.iter() {
-        ret += i.powf(2.0);
+        ret += i.powi(2);
     }
 
-    ret.powf(0.5)
+    ret.sqrt()
 }
 
 // The default decay function for LR and Sigma
