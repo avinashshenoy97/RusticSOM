@@ -323,19 +323,17 @@ fn gaussian(dims: (usize, usize), pos: (usize, usize), sigma: f32) -> Array2<f64
     Array2::from_shape_fn(dims, shape_fn)
 }
 
-// Returns the euclidian distance between 2 vectors
+/// Returns the [Euclidean distance] between `a` and `b`.
+///
+/// [Euclidean distance]: https://en.wikipedia.org/wiki/Euclidean_distance
 fn euclid_dist(a: ArrayView1<f64>, b: ArrayView1<f64>) -> f64 {
-    if a.len() != b.len() {
-        panic!("Both arrays must be of same length to find Euclidian distance!");
-    }
+    debug_assert_eq!(a.len(), b.len());
 
-    let mut dist: f64 = 0.0;
-
-    for i in 0..a.len() {
-        dist += (a[i] - b[i]).powf(2.0);
-    }
-
-    dist.powf(0.5)
+    a.iter()
+        .zip(b.iter())
+        .map(|(a, b)| (a - b).powi(2))
+        .sum::<f64>()
+        .sqrt()
 }
 
 // Unit-testing module - only compiled when "cargo test" is run!
