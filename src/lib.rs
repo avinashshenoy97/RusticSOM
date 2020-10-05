@@ -191,14 +191,8 @@ impl SOM {
 
     // Similar to winner(), but also returns distance of input sample from winner neuron.
     pub fn winner_dist(&mut self, elem: Array1<f64>) -> ((usize, usize), f64) {
-        let mut tempelem = Array1::<f64>::zeros(elem.len());
-
-        for i in 0..elem.len() {
-            if let Some(temp) = tempelem.get_mut(i) {
-                *(temp) = elem[i];
-            }
-        }
-
+        // TODO: use more descriptive names than temp[..]
+        let tempelem = elem.clone();
         let temp = self.winner(elem);
 
         (
