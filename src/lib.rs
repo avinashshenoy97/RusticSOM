@@ -294,13 +294,7 @@ impl fmt::Display for SOM {
 
 // Returns the 2-norm of a vector represented as a 1D ArrayView
 fn norm(a: ArrayView1<f64>) -> f64 {
-    let mut ret: f64 = 0.0;
-
-    for i in a.iter() {
-        ret += i.powi(2);
-    }
-
-    ret.sqrt()
+    a.iter().map(|elem| elem.powi(2)).sum::<f64>().sqrt()
 }
 
 // The default decay function for LR and Sigma
