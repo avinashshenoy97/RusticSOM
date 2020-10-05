@@ -256,20 +256,14 @@ impl SOM {
 
     // Unit testing functions for setting individual cell weights
     #[cfg(test)]
-    pub fn set_map_cell(&mut self, pos: (usize, usize, usize), val: f64) {
-        if let Some(elem) = self.data.map.get_mut(pos) {
-            *(elem) = val;
-        }
+    pub fn set_map_cell(&mut self, (i, j, k): (usize, usize, usize), val: f64) {
+        self.data.map[[i, j, k]] = val;
     }
 
     // Unit testing functions for getting individual cell weights
     #[cfg(test)]
-    pub fn get_map_cell(&self, pos: (usize, usize, usize)) -> f64 {
-        if let Some(elem) = self.data.map.get(pos) {
-            *(elem)
-        } else {
-            panic!("Invalid index!");
-        }
+    pub fn get_map_cell(&self, (i, j, k): (usize, usize, usize)) -> f64 {
+        self.data.map[[i, j, k]]
     }
 }
 
