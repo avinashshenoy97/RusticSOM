@@ -71,6 +71,9 @@ impl SOM {
     }
 
     // To find and return the position of the winner neuron for a given input sample.
+    //
+    // TODO: (breaking-change) switch `elem` to `ArrayView1`. See todo
+    //       for `Self::winner_dist()`.
     pub fn winner(&mut self, elem: Array1<f64>) -> (usize, usize) {
         let mut temp: Array1<f64> = Array1::<f64>::zeros(self.data.z);
         let mut min: f64 = std::f64::MAX;
@@ -190,6 +193,11 @@ impl SOM {
     }
 
     // Similar to winner(), but also returns distance of input sample from winner neuron.
+    //
+    // TODO: (breaking-change) make `elem` an `ArrayView1` to remove
+    //       at least one heap allocation. Requires same change to
+    //       `Self::winner()`.
+    //
     pub fn winner_dist(&mut self, elem: Array1<f64>) -> ((usize, usize), f64) {
         // TODO: use more descriptive names than temp[..]
         let tempelem = elem.clone();
