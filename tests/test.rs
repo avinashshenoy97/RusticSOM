@@ -1,7 +1,7 @@
 extern crate ndarray;
 extern crate rusticsom;
 
-use ndarray::{Array1, Array2};
+use ndarray::{array, Array1, Array2};
 use rusticsom::*;
 
 #[test]
@@ -45,7 +45,7 @@ fn t_full_test() {
     // Run with `cargo test -- --nocapture` to get output!
     // Plotted with Matplotlib
     let mut map = SOM::create(10, 10, 4, false, None, None, None, None);
-    let data = Array2::from(vec![
+    let data = array![
         [5.1, 3.5, 1.4, 0.2],
         [4.9, 3.0, 1.4, 0.2],
         [4.7, 3.2, 1.3, 0.2],
@@ -196,7 +196,7 @@ fn t_full_test() {
         [6.5, 3.0, 5.2, 2.0],
         [6.2, 3.4, 5.4, 2.3],
         [5.9, 3.0, 5.1, 1.8],
-    ]);
+    ];
 
     let data2 = data.to_owned();
     map.train_random(data, 1000);

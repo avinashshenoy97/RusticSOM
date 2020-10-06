@@ -324,6 +324,7 @@ fn euclid_dist(a: ArrayView1<f64>, b: ArrayView1<f64>) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ndarray::array;
 
     #[test]
     fn test_winner() {
@@ -343,8 +344,8 @@ mod tests {
 
     #[test]
     fn test_euclid() {
-        let a = Array1::from(vec![1.0, 2.0, 3.0, 4.0]);
-        let b = Array1::from(vec![4.0, 5.0, 6.0, 7.0]);
+        let a = array![1.0, 2.0, 3.0, 4.0];
+        let b = array![4.0, 5.0, 6.0, 7.0];
 
         assert_eq!(euclid_dist(a.view(), b.view()), 6.0);
     }
