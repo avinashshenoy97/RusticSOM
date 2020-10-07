@@ -45,16 +45,13 @@ impl SOM {
     ) -> SOM {
         // Map of "length" x "breadth" is created, with depth "inputs" (for input vectors accepted by this SOM)
         // randomize: boolean; whether the SOM must be initialized with random weights or not
+        let the_map = if randomize {
+            Array3::from_shape_simple_fn((length, breadth, inputs), random)
+        } else {
+            Array3::zeros((length, breadth, inputs))
+        };
 
-        let mut the_map = Array3::<f64>::zeros((length, breadth, inputs));
-        let act_map = Array2::<usize>::zeros((length, breadth));
-        let mut _init_regulate_lrate = 0;
-
-        if randomize {
-            for element in the_map.iter_mut() {
-                *element = random::<f64>();
-            }
-        }
+        let act_map = Array2::zeros((length, breadth));
 
         let data = SomData {
             x: length,
@@ -64,7 +61,7 @@ impl SOM {
             sigma: sigma.unwrap_or(1.0),
             activation_map: act_map,
             map: the_map,
-            regulate_lrate: _init_regulate_lrate,
+            regulate_lrate: 0,
         };
         SOM {
             data,
@@ -74,10 +71,12 @@ impl SOM {
     }
 
     // To find and return the position of the winner neuron for a given input sample.
+    //
+    // TODO: (breaking-change) switch `elem` to `ArrayView1`. See todo
+    //       for `Self::winner_dist()`.
     pub fn winner(&mut self, elem: Array1<f64>) -> (usize, usize) {
         let mut temp: Array1<f64> = Array1::<f64>::zeros(self.data.z);
         let mut min: f64 = std::f64::MAX;
-        let mut _temp_norm: f64 = 0.0;
         let mut ret: (usize, usize) = (0, 0);
 
         for i in 0..self.data.x {
@@ -86,10 +85,10 @@ impl SOM {
                     temp[k] = self.data.map[[i, j, k]] - elem[[k]];
                 }
 
-                _temp_norm = norm(temp.view());
+                let norm = norm(temp.view());
 
-                if _temp_norm < min {
-                    min = _temp_norm;
+                if norm < min {
+                    min = norm;
                     ret = (i, j);
                 }
             }
@@ -131,17 +130,15 @@ impl SOM {
         let g =
             (self.neighbourhood_fn)((self.data.x, self.data.y), winner, new_sig as f32) * new_lr;
 
-        let mut _temp_norm: f64 = 0.0;
-
         for i in 0..self.data.x {
             for j in 0..self.data.y {
                 for k in 0..self.data.z {
                     self.data.map[[i, j, k]] += (elem[[k]] - self.data.map[[i, j, k]]) * g[[i, j]];
                 }
 
-                _temp_norm = norm(self.data.map.index_axis(Axis(0), i).index_axis(Axis(0), j));
+                let norm = norm(self.data.map.index_axis(Axis(0), i).index_axis(Axis(0), j));
                 for k in 0..self.data.z {
-                    self.data.map[[i, j, k]] /= _temp_norm;
+                    self.data.map[[i, j, k]] /= norm;
                 }
             }
         }
@@ -196,15 +193,14 @@ impl SOM {
     }
 
     // Similar to winner(), but also returns distance of input sample from winner neuron.
+    //
+    // TODO: (breaking-change) make `elem` an `ArrayView1` to remove
+    //       at least one heap allocation. Requires same change to
+    //       `Self::winner()`.
+    //
     pub fn winner_dist(&mut self, elem: Array1<f64>) -> ((usize, usize), f64) {
-        let mut tempelem = Array1::<f64>::zeros(elem.len());
-
-        for i in 0..elem.len() {
-            if let Some(temp) = tempelem.get_mut(i) {
-                *(temp) = elem[i];
-            }
-        }
-
+        // TODO: use more descriptive names than temp[..]
+        let tempelem = elem.clone();
         let temp = self.winner(elem);
 
         (
@@ -256,20 +252,14 @@ impl SOM {
 
     // Unit testing functions for setting individual cell weights
     #[cfg(test)]
-    pub fn set_map_cell(&mut self, pos: (usize, usize, usize), val: f64) {
-        if let Some(elem) = self.data.map.get_mut(pos) {
-            *(elem) = val;
-        }
+    pub fn set_map_cell(&mut self, (i, j, k): (usize, usize, usize), val: f64) {
+        self.data.map[[i, j, k]] = val;
     }
 
     // Unit testing functions for getting individual cell weights
     #[cfg(test)]
-    pub fn get_map_cell(&self, pos: (usize, usize, usize)) -> f64 {
-        if let Some(elem) = self.data.map.get(pos) {
-            *(elem)
-        } else {
-            panic!("Invalid index!");
-        }
+    pub fn get_map_cell(&self, (i, j, k): (usize, usize, usize)) -> f64 {
+        self.data.map[[i, j, k]]
     }
 }
 
@@ -294,13 +284,7 @@ impl fmt::Display for SOM {
 
 // Returns the 2-norm of a vector represented as a 1D ArrayView
 fn norm(a: ArrayView1<f64>) -> f64 {
-    let mut ret: f64 = 0.0;
-
-    for i in a.iter() {
-        ret += i.powf(2.0);
-    }
-
-    ret.powf(0.5)
+    a.iter().map(|elem| elem.powi(2)).sum::<f64>().sqrt()
 }
 
 // The default decay function for LR and Sigma
@@ -308,58 +292,39 @@ fn default_decay_fn(val: f32, curr_iter: u32, max_iter: u32) -> f64 {
     (val as f64) / ((1 + (curr_iter / max_iter)) as f64)
 }
 
-// Default neighbourhood function: Gaussian function; returns a Gaussian centered in pos
-fn gaussian(size: (usize, usize), pos: (usize, usize), sigma: f32) -> Array2<f64> {
-    let mut ret = Array2::<f64>::zeros((size.0, size.1));
-    let div = 2.0 * PI * sigma as f64 * sigma as f64;
+/// Default neighborhood function.
+///
+/// Returns a two-dimensional Gaussian distribution centered at `pos`.
+fn gaussian(dims: (usize, usize), pos: (usize, usize), sigma: f32) -> Array2<f64> {
+    let div = 2.0 * PI * (sigma as f64).powi(2);
 
-    let mut x: Vec<f64> = Vec::new();
-    let mut y: Vec<f64> = Vec::new();
+    let shape_fn = |(i, j)| {
+        let x = (-((i as f64 - (pos.0 as f64)).powi(2) / div)).exp();
+        let y = (-((j as f64 - (pos.1 as f64)).powi(2) / div)).exp();
+        x * y
+    };
 
-    for i in 0..size.0 {
-        x.push(i as f64);
-        if let Some(elem) = x.get_mut(i) {
-            *elem = -((*elem - (pos.0 as f64)).powf(2.0) / div);
-            *elem = (*elem).exp();
-        }
-    }
-
-    for i in 0..size.1 {
-        y.push(i as f64);
-        if let Some(elem) = y.get_mut(i) {
-            *elem = -((*elem - (pos.1 as f64)).powf(2.0) / div);
-            *elem = (*elem).exp();
-        }
-    }
-
-    for i in 0..size.0 {
-        for j in 0..size.1 {
-            ret[[i, j]] = x[i] * y[j];
-        }
-    }
-
-    ret
+    Array2::from_shape_fn(dims, shape_fn)
 }
 
-// Returns the euclidian distance between 2 vectors
+/// Returns the [Euclidean distance] between `a` and `b`.
+///
+/// [Euclidean distance]: https://en.wikipedia.org/wiki/Euclidean_distance
 fn euclid_dist(a: ArrayView1<f64>, b: ArrayView1<f64>) -> f64 {
-    if a.len() != b.len() {
-        panic!("Both arrays must be of same length to find Euclidian distance!");
-    }
+    debug_assert_eq!(a.len(), b.len());
 
-    let mut dist: f64 = 0.0;
-
-    for i in 0..a.len() {
-        dist += (a[i] - b[i]).powf(2.0);
-    }
-
-    dist.powf(0.5)
+    a.iter()
+        .zip(b.iter())
+        .map(|(a, b)| (a - b).powi(2))
+        .sum::<f64>()
+        .sqrt()
 }
 
 // Unit-testing module - only compiled when "cargo test" is run!
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ndarray::array;
 
     #[test]
     fn test_winner() {
@@ -379,8 +344,8 @@ mod tests {
 
     #[test]
     fn test_euclid() {
-        let a = Array1::from(vec![1.0, 2.0, 3.0, 4.0]);
-        let b = Array1::from(vec![4.0, 5.0, 6.0, 7.0]);
+        let a = array![1.0, 2.0, 3.0, 4.0];
+        let b = array![4.0, 5.0, 6.0, 7.0];
 
         assert_eq!(euclid_dist(a.view(), b.view()), 6.0);
     }

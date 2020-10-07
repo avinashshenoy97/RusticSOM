@@ -13,4 +13,4 @@ before_script:
 script:
   - cargo test --verbose
   - cargo fmt -- --check
-  - cargo clippy -- -Dclippy::all
+  - cargo clippy -- -D clippy::all -D clippy::suboptimal-flops
