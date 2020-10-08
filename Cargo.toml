@@ -16,3 +16,10 @@ rand = "0.4"
 ndarray = { version = "0.13", features = ["serde-1"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+
+[dev-dependencies]
+criterion = "0.3"
+
+[[bench]]
+name = "som"
+harness = false
