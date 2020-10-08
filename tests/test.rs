@@ -1,8 +1,5 @@
-extern crate ndarray;
-extern crate rusticsom;
-
 use approx::assert_relative_eq;
-use ndarray::{Array1, Array2};
+use ndarray::{Array2, ArrayView1};
 use rusticsom::*;
 mod data;
 
@@ -10,15 +7,15 @@ mod data;
 fn t_test_som() {
     let mut map = SOM::create(2, 3, 5, false, Some(0.1), None, None, None);
 
-    assert_eq!(map.winner(Array1::from(vec![0.5; 5])), (0, 0));
+    assert_eq!(map.winner(ArrayView1::from(&[0.5; 5])), (0, 0));
 
     let mut temp_train = Array2::<f64>::zeros((2, 5));
     for i in temp_train.iter_mut() {
         *i = 1.0;
     }
 
-    map.train_batch(temp_train, 1);
-    assert_eq!(map.winner(Array1::from(vec![0.5; 5])), (0, 1));
+    map.train_batch(temp_train.view(), 1);
+    assert_eq!(map.winner(ArrayView1::from(&[0.5; 5])), (0, 1));
 }
 
 #[test]
@@ -35,7 +32,7 @@ fn t_distance_map() {
         *i = 1.0;
     }
 
-    map.train_batch(temp_train, 1);
+    map.train_batch(temp_train.view(), 1);
     let dist = map.distance_map();
 
     assert_ne!(dist[[0, 0]], 0.0);
@@ -48,15 +45,14 @@ fn t_full_test_random() {
     // Plotted with Matplotlib
     let mut map = SOM::create(10, 10, 4, false, None, None, None, None);
     let data = ndarray::arr2(&data::IRIS);
-    let data2 = data.to_owned();
-    map.train_random(data, 1000);
+
+    map.train_random(data.view(), 1000);
 
     let dist_map = map.distance_map();
     println!("{:?}", dist_map);
 
-    for x in data2.genrows() {
-        let y = x.to_owned();
-        print!("{:?}, ", map.winner(y));
+    for x in data.genrows() {
+        print!("{:?}, ", map.winner(x));
     }
 }
 
@@ -66,15 +62,14 @@ fn t_full_test_batch() {
     // Plotted with Matplotlib
     let mut map = SOM::create(10, 10, 4, false, None, None, None, None);
     let data = ndarray::arr2(&data::IRIS);
-    let data2 = data.to_owned();
-    map.train_batch(data, 1000);
+
+    map.train_batch(data.view(), 1000);
 
     let dist_map = map.distance_map();
     assert_relative_eq!(dist_map, ndarray::arr2(&data::IRIS_BATCH_DISTANCES));
     println!("{:?}", dist_map);
 
-    for x in data2.genrows() {
-        let y = x.to_owned();
-        print!("{:?}, ", map.winner(y));
+    for x in data.genrows() {
+        print!("{:?}, ", map.winner(x));
     }
 }

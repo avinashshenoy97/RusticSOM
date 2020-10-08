@@ -20,11 +20,12 @@ pub struct SomData {
 }
 
 /// A function for determining neighbours' weights.
-pub type NeighbourhoodFn = fn((usize, usize), (usize, usize), f32) -> Array2<f64>;
+pub type NeighbourhoodFn = fn((usize, usize), (usize, usize), f64) -> Array2<f64>;
 
 /// A function for decaying `learning_rate` and `sigma`.
 pub type DecayFn = fn(f32, u32, u32) -> f64;
 
+#[derive(Debug, Clone)]
 pub struct SOM {
     data: SomData,
     decay_fn: DecayFn,
@@ -72,23 +73,14 @@ impl SOM {
         }
     }
 
-    // To find and return the position of the winner neuron for a given input sample.
-    //
-    // TODO: (breaking-change) switch `elem` to `ArrayView1`. See todo
-    //       for `Self::winner_dist()`.
-    pub fn winner(&mut self, elem: Array1<f64>) -> (usize, usize) {
-        let mut temp: Array1<f64> = Array1::<f64>::zeros(self.data.z);
+    /// Returns the `(x, y)` position of the winning neuron for `elem`.
+    pub fn winner(&mut self, elem: ArrayView1<f64>) -> (usize, usize) {
         let mut min: f64 = std::f64::MAX;
         let mut ret: (usize, usize) = (0, 0);
 
-        for i in 0..self.data.x {
-            for j in 0..self.data.y {
-                for k in 0..self.data.z {
-                    temp[k] = self.data.map[[i, j, k]] - elem[[k]];
-                }
-
-                let norm = norm(temp.view());
-
+        for (i, row) in self.data.map.outer_iter().enumerate() {
+            for (j, entry) in row.outer_iter().enumerate() {
+                let norm = norm2(entry, elem);
                 if norm < min {
                     min = norm;
                     ret = (i, j);
@@ -96,15 +88,12 @@ impl SOM {
             }
         }
 
-        if let Some(elem) = self.data.activation_map.get_mut(ret) {
-            *(elem) += 1;
-        }
-
+        self.data.activation_map[ret] += 1;
         ret
     }
 
     // Update the weights of the SOM
-    fn update(&mut self, elem: Array1<f64>, winner: (usize, usize), iteration_index: u32) {
+    fn update(&mut self, elem: ArrayView1<f64>, winner: (usize, usize), iteration_index: u32) {
         let new_lr = (self.decay_fn)(
             self.data.learning_rate,
             iteration_index,
@@ -112,8 +101,7 @@ impl SOM {
         );
         let new_sig = (self.decay_fn)(self.data.sigma, iteration_index, self.data.regulate_lrate);
 
-        let g =
-            (self.neighbourhood_fn)((self.data.x, self.data.y), winner, new_sig as f32) * new_lr;
+        let g = (self.neighbourhood_fn)((self.data.x, self.data.y), winner, new_sig) * new_lr;
 
         for i in 0..self.data.x {
             for j in 0..self.data.y {
@@ -130,40 +118,34 @@ impl SOM {
     }
 
     // Trains the SOM by picking random data points as inputs from the dataset
-    pub fn train_random(&mut self, data: Array2<f64>, iterations: u32) {
-        let mut random_value: i32;
-        let mut temp1: Array1<f64>;
-        let mut temp2: Array1<f64>;
+    pub fn train_random(&mut self, data: ArrayView2<f64>, iterations: u32) {
+        let (rows, cols) = data.dim();
+        let rnd_row = || rand::thread_rng().gen_range(0, rows);
         self.update_regulate_lrate(iterations);
+        // TODO: temporary heap allocation undesirable, but not easily
+        //       avoidable.
+        let mut randomized_col = Array1::<f64>::zeros(cols);
         for iteration in 0..iterations {
-            temp1 = Array1::<f64>::zeros(ndarray::ArrayBase::dim(&data).1);
-            temp2 = Array1::<f64>::zeros(ndarray::ArrayBase::dim(&data).1);
-            random_value = rand::thread_rng().gen_range(0, ndarray::ArrayBase::dim(&data).0 as i32);
-            for i in 0..ndarray::ArrayBase::dim(&data).1 {
-                temp1[i] = data[[random_value as usize, i]];
-                temp2[i] = data[[random_value as usize, i]];
+            // TODO: Does the algorithm require us to operate over
+            //       columns like this? It is not optimal from a
+            //       cache-coherency POV.
+            for data_col in data.axis_iter(Axis(1)) {
+                ndarray::Zip::from(&mut randomized_col)
+                    .apply(|rc_elem| *rc_elem = data_col[rnd_row()]);
             }
-            let win = self.winner(temp1);
-            self.update(temp2, win, iteration);
+            let win = self.winner(randomized_col.view());
+            self.update(randomized_col.view(), win, iteration);
         }
     }
 
     // Trains the SOM by picking  data points in batches (sequentially) as inputs from the dataset
-    pub fn train_batch(&mut self, data: Array2<f64>, iterations: u32) {
-        let mut index: u32;
-        let mut temp1: Array1<f64>;
-        let mut temp2: Array1<f64>;
-        self.update_regulate_lrate(ndarray::ArrayBase::dim(&data).0 as u32 * iterations);
+    pub fn train_batch(&mut self, data: ArrayView2<f64>, iterations: u32) {
+        self.update_regulate_lrate(data.nrows() as u32 * iterations);
         for iteration in 0..iterations {
-            temp1 = Array1::<f64>::zeros(ndarray::ArrayBase::dim(&data).1);
-            temp2 = Array1::<f64>::zeros(ndarray::ArrayBase::dim(&data).1);
-            index = iteration % (ndarray::ArrayBase::dim(&data).0 - 1) as u32;
-            for i in 0..ndarray::ArrayBase::dim(&data).1 {
-                temp1[i] = data[[index as usize, i]];
-                temp2[i] = data[[index as usize, i]];
-            }
-            let win = self.winner(temp1);
-            self.update(temp2, win, iteration);
+            let index = iteration as usize % (data.nrows() - 1);
+            let col = data.index_axis(Axis(0), index);
+            let win = self.winner(col);
+            self.update(col, win, iteration);
         }
     }
 
@@ -177,30 +159,20 @@ impl SOM {
         self.data.activation_map.view()
     }
 
-    // Similar to winner(), but also returns distance of input sample from winner neuron.
-    //
-    // TODO: (breaking-change) make `elem` an `ArrayView1` to remove
-    //       at least one heap allocation. Requires same change to
-    //       `Self::winner()`.
-    //
-    pub fn winner_dist(&mut self, elem: Array1<f64>) -> ((usize, usize), f64) {
-        // TODO: use more descriptive names than temp[..]
-        let tempelem = elem.clone();
-        let temp = self.winner(elem);
-
-        (
-            temp,
-            euclid_dist(
-                self.data
-                    .map
-                    .index_axis(Axis(0), temp.0)
-                    .index_axis(Axis(0), temp.1),
-                tempelem.view(),
-            ),
-        )
+    /// Returns a tuple of the winner and its distance from `elem`.
+    pub fn winner_dist(&mut self, elem: ArrayView1<f64>) -> ((usize, usize), f64) {
+        let winner = self.winner(elem);
+        let distance = euclid_dist(
+            self.data
+                .map
+                .index_axis(Axis(0), winner.0)
+                .index_axis(Axis(0), winner.1),
+            elem,
+        );
+        (winner, distance)
     }
 
-    // Returns size of SOM.
+    /// Returns `self`'s size in `(rows, cols)`.
     pub fn get_size(&self) -> (usize, usize) {
         (self.data.x, self.data.y)
     }
@@ -227,6 +199,14 @@ impl SOM {
                 dist_map[[i, j]] = temp_dist;
             }
         }
+
+        // A bug in an earlier version of this commit led to all
+        // division by 0.0, which silent results in NaN and not a
+        // process signal. This was made by worse by integration tests
+        // not comparing test results to reference results. Let's
+        // assert here for the time being.
+        debug_assert!(max_dist.abs() > 0.0);
+
         for i in 0..self.data.x {
             for j in 0..self.data.y {
                 dist_map[[i, j]] /= max_dist;
@@ -288,9 +268,25 @@ impl SOM {
     }
 }
 
-// Returns the 2-norm of a vector represented as a 1D ArrayView
-fn norm(a: ArrayView1<f64>) -> f64 {
-    a.iter().map(|elem| elem.powi(2)).sum::<f64>().sqrt()
+// Returns the 2-norm of a vector.
+fn norm<'a, I>(iti: I) -> f64
+where
+    I: IntoIterator<Item = &'a f64>,
+{
+    iti.into_iter().map(|elem| elem.powi(2)).sum::<f64>().sqrt()
+}
+
+// Returns the 2-norm of a vector.
+fn norm2<'l, 'r, L, R>(lhs: L, rhs: R) -> f64
+where
+    L: IntoIterator<Item = &'l f64>,
+    R: IntoIterator<Item = &'r f64>,
+{
+    lhs.into_iter()
+        .zip(rhs.into_iter())
+        .map(|(l, r)| (l - r) * (l - r))
+        .sum::<f64>()
+        .sqrt()
 }
 
 // The default decay function for LR and Sigma
@@ -301,15 +297,21 @@ fn default_decay_fn(val: f32, curr_iter: u32, max_iter: u32) -> f64 {
 /// Default neighborhood function.
 ///
 /// Returns a two-dimensional Gaussian distribution centered at `pos`.
-fn gaussian(dims: (usize, usize), pos: (usize, usize), sigma: f32) -> Array2<f64> {
-    let div = 2.0 * PI * (sigma as f64).powi(2);
+fn gaussian(dims: (usize, usize), pos: (usize, usize), sigma: f64) -> Array2<f64> {
+    let div = 2.0 * PI * sigma * sigma;
+    debug_assert!(div.abs() > f64::EPSILON);
 
     let shape_fn = |(i, j)| {
-        let x = (-((i as f64 - (pos.0 as f64)).powi(2) / div)).exp();
-        let y = (-((j as f64 - (pos.1 as f64)).powi(2) / div)).exp();
+        let x = ((i as f64 - pos.0 as f64) * (i as f64 - pos.0 as f64) / -div).exp();
+        let y = ((j as f64 - pos.1 as f64) * (j as f64 - pos.1 as f64) / -div).exp();
         x * y
     };
 
+    // This allocation is fine. Benchmarking shows that eliminating
+    // this allocation by changing making `NeighbourhoodFn` lazy
+    // (computing a single array element at a time instead of
+    // returning the whole array) actually causes a performance
+    // regression of greater than 12%.
     Array2::from_shape_fn(dims, shape_fn)
 }
 
@@ -321,7 +323,7 @@ fn euclid_dist(a: ArrayView1<f64>, b: ArrayView1<f64>) -> f64 {
 
     a.iter()
         .zip(b.iter())
-        .map(|(a, b)| (a - b).powi(2))
+        .map(|(a, b)| (a - b) * (a - b))
         .sum::<f64>()
         .sqrt()
 }
@@ -344,8 +346,8 @@ mod tests {
             assert_eq!(map.get_map_cell((1, 1, k)), 1.5);
         }
 
-        assert_eq!(map.winner(Array1::from(vec![1.5; 5])), (1, 1));
-        assert_eq!(map.winner(Array1::from(vec![0.5; 5])), (0, 0));
+        assert_eq!(map.winner(ArrayView1::from(&vec![1.5; 5])), (1, 1));
+        assert_eq!(map.winner(ArrayView1::from(&vec![0.5; 5])), (0, 0));
     }
 
     #[test]

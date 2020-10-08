@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion, Throughput};
-use ndarray::{arr1, arr2};
+use ndarray::{arr2, ArrayView1};
 use rand::{thread_rng, Rng};
 use rusticsom::SOM;
 
@@ -15,7 +15,7 @@ fn training(c: &mut Criterion) {
                 || {
                     (
                         SOM::create(10, 10, 4, false, None, None, None, None),
-                        data.clone(),
+                        data.view(),
                     )
                 },
                 |(mut map, data)| map.train_random(data, iterations),
@@ -28,7 +28,7 @@ fn training(c: &mut Criterion) {
                 || {
                     (
                         SOM::create(10, 10, 4, false, None, None, None, None),
-                        data.clone(),
+                        data.view(),
                     )
                 },
                 |(mut map, data)| map.train_batch(data, iterations),
@@ -43,11 +43,11 @@ fn winner(c: &mut Criterion) {
     let mut group = c.benchmark_group("Winner");
 
     let mut map = SOM::create(10, 10, 4, false, None, None, None, None);
-    map.train_random(data, 1000);
+    map.train_random(data.view(), 1000);
 
     group.bench_function(BenchmarkId::new("Plain", 4), |b| {
         b.iter_batched(
-            || arr1(&IRIS[thread_rng().gen_range::<usize>(0, IRIS.len())]),
+            || ArrayView1::from(&IRIS[thread_rng().gen_range::<usize>(0, IRIS.len())]),
             |elem| map.winner(elem),
             BatchSize::SmallInput,
         );
@@ -55,7 +55,7 @@ fn winner(c: &mut Criterion) {
 
     group.bench_function(BenchmarkId::new("Distance", 4), |b| {
         b.iter_batched(
-            || arr1(&IRIS[thread_rng().gen_range::<usize>(0, IRIS.len())]),
+            || ArrayView1::from(&IRIS[thread_rng().gen_range::<usize>(0, IRIS.len())]),
             |elem| map.winner_dist(elem),
             BatchSize::SmallInput,
         );
