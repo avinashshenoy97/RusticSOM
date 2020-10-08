@@ -1,11 +1,13 @@
 use ndarray::{Array1, Array2, Array3, ArrayView1, ArrayView2, Axis};
 use rand::random;
 use rand::Rng;
+#[cfg(feature = "serde-1")]
 use serde::{Deserialize, Serialize};
 use std::f64::consts::PI;
 use std::fmt;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde-1", derive(Deserialize, Serialize))]
 pub struct SomData {
     x: usize,                      // length of SOM
     y: usize,                      // breadth of SOM
@@ -99,23 +101,6 @@ impl SOM {
         }
 
         ret
-    }
-
-    pub fn from_json(
-        serialized: &str,
-        decay_fn: Option<DecayFn>,
-        neighbourhood_fn: Option<NeighbourhoodFn>,
-    ) -> serde_json::Result<SOM> {
-        let data: SomData = serde_json::from_str(&serialized)?;
-
-        Ok(SOM {
-            data,
-            decay_fn: decay_fn.unwrap_or(default_decay_fn),
-            neighbourhood_fn: neighbourhood_fn.unwrap_or(gaussian),
-        })
-    }
-    pub fn to_json(&self) -> serde_json::Result<String> {
-        serde_json::to_string_pretty(&self.data)
     }
 
     // Update the weights of the SOM
@@ -279,6 +264,27 @@ impl fmt::Display for SOM {
         }
 
         write!(f, "\nSOM Shape = ({}, {})\nExpected input vectors of length = {}\nSOM learning rate regulator = {}", self.data.x, self.data.y, self.data.z, self.data.regulate_lrate)
+    }
+}
+
+#[cfg(feature = "serde-1")]
+impl SOM {
+    pub fn from_json(
+        serialized: &str,
+        decay_fn: Option<DecayFn>,
+        neighbourhood_fn: Option<NeighbourhoodFn>,
+    ) -> serde_json::Result<SOM> {
+        let data: SomData = serde_json::from_str(&serialized)?;
+
+        Ok(SOM {
+            data,
+            decay_fn: decay_fn.unwrap_or(default_decay_fn),
+            neighbourhood_fn: neighbourhood_fn.unwrap_or(gaussian),
+        })
+    }
+
+    pub fn to_json(&self) -> serde_json::Result<String> {
+        serde_json::to_string_pretty(&self.data)
     }
 }
 

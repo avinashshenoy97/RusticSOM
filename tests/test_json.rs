@@ -1,5 +1,4 @@
-extern crate ndarray;
-extern crate rusticsom;
+#![cfg(feature = "serde-1")]
 
 use rusticsom::*;
 mod data;
