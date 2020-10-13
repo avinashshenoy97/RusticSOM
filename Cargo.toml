@@ -12,8 +12,9 @@ exclude = [".DS_Store"]
 edition = "2018"
 
 [dependencies]
+approx = "*"
 rand = "0.4"
-ndarray = { version = "0.13", features = ["serde-1"] }
+ndarray = { version = "0.13", features = ["serde-1", "approx"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
