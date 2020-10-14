@@ -11,8 +11,20 @@ categories = ["machine-learning"]
 exclude = [".DS_Store"]
 edition = "2018"
 
+[features]
+default = []
+serde-1 = ["serde", "serde_json"]
+
 [dependencies]
+approx = "*"
+ndarray = { version = "0.13", features = ["serde-1", "approx"] }
 rand = "0.4"
-ndarray = { version = "0.13", features = ["serde-1"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+serde = { version = "1", features = ["derive"], optional = true }
+serde_json = { version = "1", optional = true }
+
+[dev-dependencies]
+criterion = "0.3"
+
+[[bench]]
+name = "som"
+harness = false
