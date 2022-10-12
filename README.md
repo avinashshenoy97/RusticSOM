@@ -1,4 +1,4 @@
-# RusticSOM
+
 Rust library for Self Organising Maps (SOM).
 
 ![Status](https://img.shields.io/badge/status-active-brightgreen.svg?style=flat)
@@ -9,11 +9,13 @@ Rust library for Self Organising Maps (SOM).
 
 ## Using this Crate
 
-Add `rusticsom` as a dependency in `Cargo.toml`
+Add `rusticsom` as a dependency in `Cargo.toml`, as well as version 0.13 of
+`ndarray`:
 
 ```toml
 [dependencies]
 rusticsom = "1.1.0"
+ndarray = { version = "0.13", features = ["serde-1"] }
 ```
 
 Include the crate 
@@ -166,3 +168,27 @@ Using a 10 x 10 SOM, trained for 1000 iterations :
 |Circle|setosa|
 |Square|versicolor|
 |Diamond|virginica|
+
+## Troubleshooting
+
+If you get an error like:
+
+```
+error[E0308]: mismatched types
+   --> src/main.rs:163:22
+    |
+163 |     map.train_random(data, 1000);
+    |                      ^^^^ expected struct `ndarray::ArrayBase`, found struct `ArrayBase`
+    |
+    = note: expected struct `ndarray::ArrayBase<ndarray::data_repr::OwnedRepr<f64>, ndarray::dimension::dim::Dim<[usize; 2]>>`
+               found struct `ArrayBase<OwnedRepr<{float}>, Dim<[usize; 2]>>`
+    = note: perhaps two different versions of crate `ndarray` are being used?
+```
+Then make sure you're NOT using the latest version of `ndarray`, but rather
+version 0.13 like:
+
+```
+[dependencies]
+rusticsom = "1.1.0"
+ndarray = { version = "0.13", features = ["serde-1"] }
+```
