@@ -1,3 +1,4 @@
+//! The RustiSOM crate provides a Rust implementation of Self Organizing Feature Maps (SOMs)
 use ndarray::{Array1, Array2, Array3, ArrayView1, ArrayView2, Axis};
 use rand::random;
 use rand::Rng;
@@ -5,16 +6,25 @@ use serde::{Deserialize, Serialize};
 use std::f64::consts::PI;
 use std::fmt;
 
+/// Contains the data about the Self Organising Map
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SomData {
-    x: usize,                      // length of SOM
-    y: usize,                      // breadth of SOM
-    z: usize,                      // size of inputs
-    learning_rate: f32,            // initial learning rate
-    sigma: f32,                    // spread of neighbourhood function, default = 1.0
-    regulate_lrate: u32,           // Regulates the learning rate w.r.t the number of iterations
-    map: Array3<f64>,              // the SOM itself
-    activation_map: Array2<usize>, // each cell represents how many times the corresponding cell in SOM was winner
+    /// Length of SOM
+    x: usize,
+    /// Breadth of SOM
+    y: usize,
+    /// size of inputs
+    z: usize,
+    /// initial learning rate
+    learning_rate: f32,
+    /// spread of neighbourhood function, default = 1.0
+    sigma: f32,
+    /// Regulates the learning rate w.r.t the number of iterations
+    regulate_lrate: u32,
+    /// the SOM itself
+    map: Array3<f64>,
+    /// each cell represents how many times the corresponding cell in SOM was winner
+    activation_map: Array2<usize>,
 }
 
 /// A function for determining neighbours' weights.
@@ -23,15 +33,31 @@ pub type NeighbourhoodFn = fn((usize, usize), (usize, usize), f32) -> Array2<f64
 /// A function for decaying `learning_rate` and `sigma`.
 pub type DecayFn = fn(f32, u32, u32) -> f64;
 
+/// Describes the Self Organizing Map itself and provides constructors for creating one.
 pub struct SOM {
     data: SomData,
     decay_fn: DecayFn,
     neighbourhood_fn: NeighbourhoodFn,
 }
 
-// Method definitions of the SOM struct
+/// Method definitions of the SOM struct
 impl SOM {
-    // To create a Self-Organizing Map (SOM)
+    /// Creates a Self Organising Map
+    /// * `length` - The length of the SOM.
+    /// * `breadth` - The breadth of the SOM.
+    /// * `inputs` - The depth of the SOM. Each of the cells will have this many neurons.
+    /// * `randomize` - whether the SOM must be initialised with random weights or with all zeros.
+    /// * `learning_rate` - The learning rate to use. Defaults to 0.5 if `None`.
+    /// * `sigma` - The sigma value to use. Defaults to 1.0 if `None`
+    /// * `decay_fn` - The decay function to use. If `None`, will default to:
+    /// ```
+    /// fn default_decay_fn(val: f32, curr_iter: u32, max_iter: u32) -> f64 {
+    ///     (val as f64) / ((1 + (curr_iter / max_iter)) as f64)
+    /// }
+    /// ```
+    /// * `neighbourhood_fn` - The neighbourhood function to use. If `None`, will default to a 2
+    ///   dimensional gaussian centered around the relevant cell and with a standard deviation that
+    ///   decays over time according to `decay_fn`.
     #[allow(clippy::too_many_arguments)]
     pub fn create(
         length: usize,
@@ -43,8 +69,6 @@ impl SOM {
         decay_fn: Option<DecayFn>,
         neighbourhood_fn: Option<NeighbourhoodFn>,
     ) -> SOM {
-        // Map of "length" x "breadth" is created, with depth "inputs" (for input vectors accepted by this SOM)
-        // randomize: boolean; whether the SOM must be initialized with random weights or not
         let the_map = if randomize {
             Array3::from_shape_simple_fn((length, breadth, inputs), random)
         } else {
@@ -70,10 +94,10 @@ impl SOM {
         }
     }
 
-    // To find and return the position of the winner neuron for a given input sample.
-    //
-    // TODO: (breaking-change) switch `elem` to `ArrayView1`. See todo
-    //       for `Self::winner_dist()`.
+    /// Find and return the position of the winner neuron for a given input sample.
+    ///
+    /// TODO: (breaking-change) switch `elem` to `ArrayView1`. See todo
+    ///       for `Self::winner_dist()`.
     pub fn winner(&mut self, elem: Array1<f64>) -> (usize, usize) {
         let mut temp: Array1<f64> = Array1::<f64>::zeros(self.data.z);
         let mut min: f64 = std::f64::MAX;
@@ -101,6 +125,8 @@ impl SOM {
         ret
     }
 
+    /// Use the provided JSON string to create a SOM. The JSON string should have come from
+    /// `SOM::to_json`.
     pub fn from_json(
         serialized: &str,
         decay_fn: Option<DecayFn>,
@@ -118,7 +144,7 @@ impl SOM {
         serde_json::to_string_pretty(&self.data)
     }
 
-    // Update the weights of the SOM
+    /// Update the weights of the SOM
     fn update(&mut self, elem: Array1<f64>, winner: (usize, usize), iteration_index: u32) {
         let new_lr = (self.decay_fn)(
             self.data.learning_rate,
@@ -144,7 +170,8 @@ impl SOM {
         }
     }
 
-    // Trains the SOM by picking random data points as inputs from the dataset
+    /// Train the SOM by picking samples from the dataset at random for `iterations` number of
+    /// iterations.
     pub fn train_random(&mut self, data: Array2<f64>, iterations: u32) {
         let mut random_value: i32;
         let mut temp1: Array1<f64>;
@@ -163,7 +190,7 @@ impl SOM {
         }
     }
 
-    // Trains the SOM by picking  data points in batches (sequentially) as inputs from the dataset
+    /// Trains the SOM by picking data points in batches (sequentially) as inputs from the dataset
     pub fn train_batch(&mut self, data: Array2<f64>, iterations: u32) {
         let mut index: u32;
         let mut temp1: Array1<f64>;
@@ -182,45 +209,52 @@ impl SOM {
         }
     }
 
-    // Update learning rate regulator (keep learning rate constant with increase in number of iterations)
+    /// Update learning rate regulator (keep learning rate constant with increase in number of
+    /// iterations). This will set the learning rate regulator to be half of the provided number of
+    /// iterations.
     fn update_regulate_lrate(&mut self, iterations: u32) {
         self.data.regulate_lrate = iterations / 2;
     }
 
-    // Returns the activation map of the SOM, where each cell at (i, j) represents how many times the cell at (i, j) in the SOM was picked a winner neuron.
+    /// Returns the activation map of the SOM, where each cell at (i, j) represents how many times
+    /// the cell at (i, j) in the SOM was picked a winner neuron.
     pub fn activation_response(&self) -> ArrayView2<usize> {
         self.data.activation_map.view()
     }
 
-    // Similar to winner(), but also returns distance of input sample from winner neuron.
-    //
-    // TODO: (breaking-change) make `elem` an `ArrayView1` to remove
-    //       at least one heap allocation. Requires same change to
-    //       `Self::winner()`.
-    //
+    /// Return both the coordinates of the winning neuron for a given sample, as well as the
+    /// distance from that sample to the neuron. Similar to `SOM::winner()`.
+    ///
+    /// TODO: (breaking-change) make `elem` an `ArrayView1` to remove
+    ///       at least one heap allocation. Requires same change to
+    ///       `Self::winner()`.
     pub fn winner_dist(&mut self, elem: Array1<f64>) -> ((usize, usize), f64) {
-        // TODO: use more descriptive names than temp[..]
-        let tempelem = elem.clone();
-        let temp = self.winner(elem);
+        let sample = elem.clone();
+        let winning_node = self.winner(elem);
 
         (
-            temp,
+            winning_node,
             euclid_dist(
                 self.data
                     .map
-                    .index_axis(Axis(0), temp.0)
-                    .index_axis(Axis(0), temp.1),
-                tempelem.view(),
+                    .index_axis(Axis(0), winning_node.0)
+                    .index_axis(Axis(0), winning_node.1),
+                sample.view(),
             ),
         )
     }
 
-    // Returns size of SOM.
+    /// Get the dimensions of the SOM as a tuple `(length, breadth)`.
     pub fn get_size(&self) -> (usize, usize) {
         (self.data.x, self.data.y)
     }
 
-    // Returns the distance map of each neuron / the normalised sum of a neuron to every other neuron in the map.
+    /// Get the normalised distance from every neuron to every other neuron (AKA the distance map).
+    /// The result is a 2D array of size `(width, breadth)` where the value at `[i,j]` is the sum
+    /// of the distances from neuron `i,j` to every other neuron. These values are standardised to
+    /// have a maximum of `1.0`, and the minimum is at least `0.0`.
+    ///
+    /// Computed in O((`w` `b`)^2), where `w` is the width and `b` the breadth of the SOM.
     pub fn distance_map(&self) -> Array2<f64> {
         let mut dist_map = Array2::<f64>::zeros((self.data.x, self.data.y));
         let mut temp_dist: f64;
@@ -242,6 +276,7 @@ impl SOM {
                 dist_map[[i, j]] = temp_dist;
             }
         }
+        // Now normalise the distances by dividing by the largest distance.
         for i in 0..self.data.x {
             for j in 0..self.data.y {
                 dist_map[[i, j]] /= max_dist;
@@ -250,20 +285,20 @@ impl SOM {
         dist_map
     }
 
-    // Unit testing functions for setting individual cell weights
+    /// Unit testing functions for setting individual cell weights
     #[cfg(test)]
     pub fn set_map_cell(&mut self, (i, j, k): (usize, usize, usize), val: f64) {
         self.data.map[[i, j, k]] = val;
     }
 
-    // Unit testing functions for getting individual cell weights
+    /// Unit testing functions for getting individual cell weights
     #[cfg(test)]
     pub fn get_map_cell(&self, (i, j, k): (usize, usize, usize)) -> f64 {
         self.data.map[[i, j, k]]
     }
 }
 
-// To enable SOM objects to be printed with "print" and it's family of formatted string printing functions
+/// Allow the SOM to be printed.
 impl fmt::Display for SOM {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let (mut i, mut j) = (0, 0);
@@ -282,19 +317,22 @@ impl fmt::Display for SOM {
     }
 }
 
-// Returns the 2-norm of a vector represented as a 1D ArrayView
+/// Returns the 2-norm of a vector represented as a 1D ArrayView. This is the square root of the
+/// sum of the squares of all values in `a`.
 fn norm(a: ArrayView1<f64>) -> f64 {
     a.iter().map(|elem| elem.powi(2)).sum::<f64>().sqrt()
 }
 
-// The default decay function for LR and Sigma
+/// The default decay function for learning rate and sigma. This will decay as the `curr_iter`
+/// increases.
 fn default_decay_fn(val: f32, curr_iter: u32, max_iter: u32) -> f64 {
     (val as f64) / ((1 + (curr_iter / max_iter)) as f64)
 }
 
-/// Default neighborhood function.
+/// Returns a two-dimensional Gaussian distribution centered at `pos` of shape `dims` with a
+/// standard deviation of `sigma`.
 ///
-/// Returns a two-dimensional Gaussian distribution centered at `pos`.
+/// This is used as the default `neighbourhood_fn`.
 fn gaussian(dims: (usize, usize), pos: (usize, usize), sigma: f32) -> Array2<f64> {
     let div = 2.0 * PI * (sigma as f64).powi(2);
 
@@ -320,7 +358,7 @@ fn euclid_dist(a: ArrayView1<f64>, b: ArrayView1<f64>) -> f64 {
         .sqrt()
 }
 
-// Unit-testing module - only compiled when "cargo test" is run!
+/// Unit tests
 #[cfg(test)]
 mod tests {
     use super::*;
