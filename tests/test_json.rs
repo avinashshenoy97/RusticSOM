@@ -175,7 +175,7 @@ fn t_full_test() {
 
     let json = map.to_json().unwrap();
 
-    let mut map_imported = SOM::from_json(&json, None, None).unwrap();
+    let mut map_imported = SOM::from_json(&json, None, None, None).unwrap();
 
     for x in data2.genrows() {
         let y1 = x.to_owned();

@@ -33,11 +33,16 @@ pub type NeighbourhoodFn = fn((usize, usize), (usize, usize), f32) -> Array2<f64
 /// A function for decaying `learning_rate` and `sigma`.
 pub type DecayFn = fn(f32, u32, u32) -> f64;
 
+/// A callback type that takes in the number of iterations
+pub type CallbackFn = fn(u32);
+
 /// Describes the Self Organizing Map itself and provides constructors for creating one.
 pub struct SOM {
     data: SomData,
     decay_fn: DecayFn,
     neighbourhood_fn: NeighbourhoodFn,
+    /// An array of callbacks which are called after every training iteration.
+    callbacks: Vec<CallbackFn>,
 }
 
 /// Method definitions of the SOM struct
@@ -91,6 +96,7 @@ impl SOM {
             data,
             decay_fn: decay_fn.unwrap_or(default_decay_fn),
             neighbourhood_fn: neighbourhood_fn.unwrap_or(gaussian),
+            callbacks: vec![],
         }
     }
 
@@ -131,6 +137,7 @@ impl SOM {
         serialized: &str,
         decay_fn: Option<DecayFn>,
         neighbourhood_fn: Option<NeighbourhoodFn>,
+        callbacks: Option<Vec<CallbackFn>>,
     ) -> serde_json::Result<SOM> {
         let data: SomData = serde_json::from_str(&serialized)?;
 
@@ -138,6 +145,7 @@ impl SOM {
             data,
             decay_fn: decay_fn.unwrap_or(default_decay_fn),
             neighbourhood_fn: neighbourhood_fn.unwrap_or(gaussian),
+            callbacks: callbacks.unwrap_or(vec![]),
         })
     }
     pub fn to_json(&self) -> serde_json::Result<String> {
@@ -187,6 +195,10 @@ impl SOM {
             }
             let win = self.winner(temp1);
             self.update(temp2, win, iteration);
+            // Iterate over the callbacks and execute them so the user can hook into training
+            for cb in &self.callbacks {
+                (cb)(iteration);
+            }
         }
     }
 
@@ -283,6 +295,21 @@ impl SOM {
             }
         }
         dist_map
+    }
+
+    /// Add a callback to the SOM. This function will be called after every training iteration and
+    /// can be used to monitor progress. For example:
+    /// ```
+    /// use rusticsom::SOM;
+    /// let mut map = SOM::create(10, 10, 4, false, None, None, None, None);
+    /// map.add_callback(|iters| {
+    ///     if iters % 100 == 0 {
+    ///         println!("Exactly {} iterations have passed", iters);
+    ///     }
+    /// });
+    /// ```
+    pub fn add_callback(&mut self, callback: CallbackFn) {
+        self.callbacks.push(callback);
     }
 
     /// Unit testing functions for setting individual cell weights
