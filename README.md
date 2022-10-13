@@ -1,4 +1,4 @@
-
+# RusticSOM
 Rust library for Self Organising Maps (SOM).
 
 ![Status](https://img.shields.io/badge/status-active-brightgreen.svg?style=flat)
