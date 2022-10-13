@@ -34,7 +34,7 @@ pub type NeighbourhoodFn = fn((usize, usize), (usize, usize), f32) -> Array2<f64
 pub type DecayFn = fn(f32, u32, u32) -> f64;
 
 /// A callback type that takes in the number of iterations
-pub type CallbackFn = fn(u32);
+pub type CallbackFn = fn(&mut SOM, u32);
 
 /// Describes the Self Organizing Map itself and provides constructors for creating one.
 pub struct SOM {
@@ -196,8 +196,8 @@ impl SOM {
             let win = self.winner(temp1);
             self.update(temp2, win, iteration);
             // Iterate over the callbacks and execute them so the user can hook into training
-            for cb in &self.callbacks {
-                (cb)(iteration);
+            for cb in self.callbacks.clone() {
+                (cb)(self, iteration);
             }
         }
     }
@@ -298,13 +298,20 @@ impl SOM {
     }
 
     /// Add a callback to the SOM. This function will be called after every training iteration and
-    /// can be used to monitor progress. For example:
+    /// can be used to monitor progress or store the state of the SOM at checkpoints. For example:
     /// ```
     /// use rusticsom::SOM;
-    /// let mut map = SOM::create(10, 10, 4, false, None, None, None, None);
-    /// map.add_callback(|iters| {
+    /// use std::fs::File;
+    /// use std::io::Write;
+    ///
+    /// let mut som = SOM::create(10, 10, 4, false, None, None, None, None);
+    /// som.add_callback(|som, iters| {
     ///     if iters % 100 == 0 {
-    ///         println!("Exactly {} iterations have passed", iters);
+    ///         // Print out the number of passed iterations
+    ///         println!("Iteration {}", iters);
+    ///         // And save the som as a JSON
+    ///         let mut file = File::create(format!("som_at_iter_{}.json", iters)).unwrap();
+    ///         writeln!(&mut file, "{}", som.to_json().unwrap()).unwrap();
     ///     }
     /// });
     /// ```
