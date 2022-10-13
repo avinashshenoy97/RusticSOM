@@ -144,7 +144,7 @@ impl SOM {
         neighbourhood_fn: Option<NeighbourhoodFn>,
         callbacks: Option<Vec<CallbackFn>>,
     ) -> serde_json::Result<SOM> {
-        let data: SomData = serde_json::from_str(&serialized)?;
+        let data: SomData = serde_json::from_str(serialized)?;
 
         Ok(SOM {
             data,
