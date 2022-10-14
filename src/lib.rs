@@ -1,4 +1,5 @@
 //! The RustiSOM crate provides a Rust implementation of Self Organizing Feature Maps (SOMs)
+use ndarray::{Dim, OwnedRepr, ArrayBase, ViewRepr};
 use ndarray::{Array1, Array2, Array3, ArrayView1, ArrayView2, Axis};
 use rand::random;
 use rand::Rng;
@@ -16,9 +17,11 @@ pub struct SomData {
     /// The number of elements in each neuron. Must equal the number of features in each sample of
     /// the input data
     z: usize,
-    /// initial learning rate
+    /// The initial learning rate. The actual learning rate used at any given iteration depends on
+    /// the decay function.
     learning_rate: f32,
-    /// spread of neighbourhood function, default = 1.0
+    /// The spread of neighbourhood function, defaults to 1.0. The actual sigma value used at any
+    /// given iteration depends on the decay function.
     sigma: f32,
     /// Regulates the learning rate w.r.t the number of iterations
     regulate_lrate: u32,
@@ -34,8 +37,9 @@ pub type NeighbourhoodFn = fn((usize, usize), (usize, usize), f32) -> Array2<f64
 /// A function for decaying `learning_rate` and `sigma`.
 pub type DecayFn = fn(f32, u32, u32) -> f64;
 
-/// A callback type that takes in the number of iterations
-pub type CallbackFn = fn(&mut SOM, u32);
+/// A callback type that accepts the SOM, the data being used to train the SOM, and the number of
+/// iterations. It is called at the end of each training iteration.
+pub type CallbackFn = fn(&mut SOM, data: &Array2<f64>, u32);
 
 /// Describes the Self Organizing Map itself and provides constructors for creating one.
 pub struct SOM {
@@ -215,7 +219,7 @@ impl SOM {
             self.update(sample_copy, winner, iteration);
             // Iterate over the callbacks and execute them so the user can hook into training
             for cb in self.callbacks.clone() {
-                (cb)(self, iteration);
+                (cb)(self, &data, iteration);
             }
         }
     }
@@ -236,6 +240,10 @@ impl SOM {
             }
             let win = self.winner(temp1);
             self.update(temp2, win, iteration);
+            // Iterate over the callbacks and execute them so the user can hook into training
+            for cb in self.callbacks.clone() {
+                (cb)(self, &data, iteration);
+            }
         }
     }
 
@@ -322,20 +330,55 @@ impl SOM {
     /// use rusticsom::SOM;
     /// use std::fs::File;
     /// use std::io::Write;
+    /// use ndarray::array;
     ///
     /// let mut som = SOM::create(10, 10, 4, false, None, None, None, None);
-    /// som.add_callback(|som, iters| {
-    ///     if iters % 100 == 0 {
-    ///         // Print out the number of passed iterations
-    ///         println!("Iteration {}", iters);
-    ///         // And save the som as a JSON
-    ///         let mut file = File::create(format!("som_at_iter_{}.json", iters)).unwrap();
-    ///         writeln!(&mut file, "{}", som.to_json().unwrap()).unwrap();
-    ///     }
+    /// som.add_callback(|som, _data, iters| {
+    ///     if iters % 10_000 != 0 { return; }
+    ///     // Print out the number of passed iterations
+    ///     println!("Iteration {}", iters);
+    ///     // And save the som as a JSON
+    ///     let mut file = File::create(format!("som_at_iter_{}.json", iters)).unwrap();
+    ///     writeln!(&mut file, "{}", som.to_json().unwrap()).unwrap();
     /// });
     /// ```
     pub fn add_callback(&mut self, callback: CallbackFn) {
         self.callbacks.push(callback);
+    }
+
+    /// Get a view of the neurons as a 3D array. Useful for seeing how the neurons change over
+    /// time as the SOM trains.
+    pub fn get_neurons(&self) -> ArrayBase<ViewRepr<&f64>, Dim<[usize; 3]>>{
+        self.data.map.view()
+    }
+
+    /// Get the initial learning rate. The actual learning rate used each iteration depends on the
+    /// decay function.
+    /// ```
+    /// use rusticsom::SOM;
+    /// let som = SOM::create(10, 10, 4, false, None, None, None, None);
+    /// // Default learning rate is 0.5
+    /// assert_eq!(som.get_learning_rate(), 0.5);
+    ///
+    /// let som = SOM::create(10, 10, 4, false, Some(4.2), None, None, None);
+    /// assert_eq!(som.get_learning_rate(), 4.2);
+    /// ```
+    pub fn get_learning_rate(&self) -> f32 {
+        self.data.learning_rate
+    }
+
+    /// Get the initial sigma. The actual sigma used each iteration depends on the decay function.
+    /// ```
+    /// use rusticsom::SOM;
+    /// let som = SOM::create(10, 10, 4, false, None, None, None, None);
+    /// // Default sigma is 1.0
+    /// assert_eq!(som.get_sigma(), 1.0);
+    ///
+    /// let som = SOM::create(10, 10, 4, false, None, Some(2.4), None, None);
+    /// assert_eq!(som.get_sigma(), 2.4);
+    /// ```
+    pub fn get_sigma(&self) -> f32 {
+        self.data.sigma
     }
 
     /// Unit testing functions for setting individual cell weights
