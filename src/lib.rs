@@ -175,7 +175,7 @@ impl SOM {
         // Decay the value of sigma based on the decay function
         let new_sigma = (self.decay_fn)(self.data.sigma, iteration_index, self.data.regulate_lrate);
 
-        let g =
+        let neighbour_vals =
             (self.neighbourhood_fn)((self.data.x, self.data.y), winner, new_sigma as f32) * new_lr;
 
         // Iterate over every neuron
@@ -187,7 +187,7 @@ impl SOM {
                     let delta = elem[[k]] - self.data.map[[i, j, k]];
                     // Update the neuron to be the change multiplied by the result of the
                     // neighbourhood function
-                    self.data.map[[i, j, k]] += g[[i, j]] * delta;
+                    self.data.map[[i, j, k]] += neighbour_vals[[i, j]] * delta;
                 }
                 // Normalise all of the values of this neuron
                 let norm = norm(self.data.map.index_axis(Axis(0), i).index_axis(Axis(0), j));
