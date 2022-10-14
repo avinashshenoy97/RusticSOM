@@ -117,12 +117,14 @@ impl SOM {
 
         for i in 0..self.data.x {
             for j in 0..self.data.y {
-                // delta = &self.data.map.slice(s![i, j, ..]) - &elem.view();
-                // TODO this assertion just checks that the above broadcasting slice doesn't change
-                // anything. the below assertion can be removed if nothing breaks for a while
                 for k in 0..self.data.z {
-                    // assert_eq!(delta[k], self.data.map[[i, j, k]] - elem[[k]]);
-                    delta[k] = self.data.map[[i, j, k]] - elem[[k]];
+                    // If a sample value is nan, ignore it and assume that the sample is identical
+                    // in this feature (so set the difference to zero)
+                    delta[k] = if elem[[k]].is_nan() {
+                        0.0
+                    } else {
+                        self.data.map[[i, j, k]] - elem[[k]]
+                    };
                 }
 
                 let magnitude = norm(delta.view());
