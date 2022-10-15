@@ -200,8 +200,12 @@ impl SOM {
                 }
                 // Normalise all of the values of this neuron
                 let norm = norm(self.data.map.index_axis(Axis(0), i).index_axis(Axis(0), j));
-                for k in 0..self.data.z {
-                    self.data.map[[i, j, k]] /= norm;
+                // Sometimes norm can be zero due to the neuron having extremely tiny values that
+                // are squared and become zero. Adding norm > 0 avoids NaNs in the neurons
+                if norm > 0.0 {
+                    for k in 0..self.data.z {
+                        self.data.map[[i, j, k]] /= norm;
+                    }
                 }
             }
         }
