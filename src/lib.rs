@@ -1,5 +1,5 @@
 //! The RustiSOM crate provides a Rust implementation of Self Organizing Feature Maps (SOMs)
-use ndarray::{Dim, OwnedRepr, ArrayBase, ViewRepr};
+use ndarray::{ArrayBase, Dim, ViewRepr};
 use ndarray::{Array1, Array2, Array3, ArrayView1, ArrayView2, Axis};
 use rand::random;
 use rand::Rng;
@@ -21,7 +21,7 @@ pub struct SomData {
     /// the decay function.
     learning_rate: f32,
     /// The spread of neighbourhood function, defaults to 1.0. The actual sigma value used at any
-    /// given iteration depends on the decay function.
+    /// given iteration depends on the decay function. Must be less than both `x` and `y`.
     sigma: f32,
     /// Regulates the learning rate w.r.t the number of iterations
     regulate_lrate: u32,
@@ -58,7 +58,8 @@ impl SOM {
     /// * `inputs` - The depth of the SOM. Each of the cells will have this many neurons.
     /// * `randomize` - whether the SOM must be initialised with random weights or with all zeros.
     /// * `learning_rate` - The learning rate to use. Defaults to 0.5 if `None`.
-    /// * `sigma` - The sigma value to use. Defaults to 1.0 if `None`
+    /// * `sigma` - The sigma value to use. Defaults to 1.0 if `None`. Must be less than both `x`
+    ///   and `y`
     /// * `decay_fn` - The decay function to use. If `None`, will default to:
     /// ```
     /// fn default_decay_fn(val: f32, curr_iter: u32, max_iter: u32) -> f64 {
@@ -87,12 +88,20 @@ impl SOM {
 
         let act_map = Array2::zeros((length, breadth));
 
+        let sigma = sigma.unwrap_or(1.0);
+        assert!(
+            sigma < length as f32 && sigma < breadth as f32,
+            "Sigma must be less than length and less than breadth but {} isn't less than {} or {}",
+            sigma,
+            length,
+            breadth
+        );
         let data = SomData {
             x: length,
             y: breadth,
             z: inputs,
             learning_rate: learning_rate.unwrap_or(0.5),
-            sigma: sigma.unwrap_or(1.0),
+            sigma,
             activation_map: act_map,
             map: the_map,
             regulate_lrate: 0,
